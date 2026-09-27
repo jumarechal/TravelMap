@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, SectionList, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePlaces } from '../context/PlacesContext';
+import { Ionicons } from '@expo/vector-icons';
 import { COUNTRIES, CONTINENTS } from '../data/countries';
-import { colors, radius, spacing, shadow } from '../theme/theme';
+import { useCountryStats } from '../hooks/useCountryStats';
+import CountryStatsModal from '../components/CountryStatsModal';
+import { colors, radius, spacing, shadow, getLevelColor, getLevelTextColor } from '../theme/theme';
 
 // Nombre de badges par ligne
 const NUM_COLUMNS = 3;
@@ -29,14 +31,14 @@ function ProgressBar({ progress, color, trackColor }) {
 }
 
 // Écran "Passeport" : un badge par pays du monde, regroupés par continent.
-// Un badge est en couleur si on a déjà dormi dans ce pays, grisé sinon.
+// La couleur du badge dépend du niveau de connaissance du pays (0 à 5).
 export default function PassportScreen({ navigation }) {
-  const { places } = usePlaces();
+  const { byCode: statsByCode } = useCountryStats();
+  const [selectedCountry, setSelectedCountry] = useState(null);
 
-  // Ensemble des codes pays (ISO) déjà visités, déduit des lieux enregistrés
   const visitedCodes = useMemo(
-    () => new Set(places.map((p) => p.countryCode).filter(Boolean)),
-    [places]
+    () => new Set(Object.keys(statsByCode)),
+    [statsByCode]
   );
 
   // Une section par continent, avec son propre décompte de pays visités
@@ -57,70 +59,104 @@ export default function PassportScreen({ navigation }) {
   const totalVisited = sections.reduce((sum, section) => sum + section.visitedCount, 0);
 
   return (
-    <SectionList
-      style={styles.container}
-      sections={sections}
-      keyExtractor={(row, index) => `${row[0].code}-row-${index}`}
-      stickySectionHeadersEnabled={false}
-      contentContainerStyle={styles.list}
-      ListHeaderComponent={
-        <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.overallHeader}
-        >
-          <Text style={styles.overallHeaderValue}>
-            {totalVisited}
-            <Text style={styles.overallHeaderTotal}> / {COUNTRIES.length}</Text>
-          </Text>
-          <Text style={styles.overallHeaderLabel}>pays débloqués au total</Text>
-        </LinearGradient>
-      }
-      renderSectionHeader={({ section }) => (
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionHeaderTop}>
-            <Text style={styles.sectionTitle}>{section.continent}</Text>
-            <Text style={styles.sectionCount}>
-              {section.visitedCount} / {section.totalCount}
+    <>
+      <SectionList
+        style={styles.container}
+        sections={sections}
+        keyExtractor={(row, index) => `${row[0].code}-row-${index}`}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <LinearGradient
+            colors={[colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.overallHeader}
+          >
+            <Text style={styles.overallHeaderValue}>
+              {totalVisited}
+              <Text style={styles.overallHeaderTotal}> / {COUNTRIES.length}</Text>
+            </Text>
+            <Text style={styles.overallHeaderLabel}>pays débloqués au total</Text>
+          </LinearGradient>
+        }
+        ListFooterComponent={
+          <View style={styles.legend}>
+            <Text style={styles.legendTitle}>Niveaux de connaissance d'un pays (1 à 6)</Text>
+            <Text style={styles.legendLine}>Nombre de villes visitées, ou score de progression</Text>
+            <Text style={styles.legendLine}>
+              adapté à la taille du pays (la capitale compte triple)
             </Text>
           </View>
-          <ProgressBar
-            progress={section.totalCount ? section.visitedCount / section.totalCount : 0}
-            color={colors.accent}
-            trackColor={colors.border}
-          />
-        </View>
-      )}
-      renderItem={({ item: row }) => (
-        <View style={styles.row}>
-          {row.map((country) => {
-            const visited = visitedCodes.has(country.code);
-            return (
-              <TouchableOpacity
-                key={country.code}
-                disabled={!visited}
-                activeOpacity={0.7}
-                onPress={() =>
-                  navigation.navigate('Mes lieux', { focusCountryCode: country.code })
-                }
-                style={[styles.badge, !visited && styles.badgeLocked]}
-              >
-                <Text style={[styles.flag, !visited && styles.flagLocked]}>{country.flag}</Text>
-                <Text style={[styles.name, !visited && styles.nameLocked]} numberOfLines={2}>
-                  {country.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-          {/* Complète la dernière ligne d'une section pour garder des badges alignés */}
-          {row.length < NUM_COLUMNS &&
-            Array.from({ length: NUM_COLUMNS - row.length }).map((_, i) => (
-              <View key={`filler-${i}`} style={styles.badgeFiller} />
-            ))}
-        </View>
-      )}
-    />
+        }
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderTop}>
+              <Text style={styles.sectionTitle}>{section.continent}</Text>
+              <Text style={styles.sectionCount}>
+                {section.visitedCount} / {section.totalCount}
+              </Text>
+            </View>
+            <ProgressBar
+              progress={section.totalCount ? section.visitedCount / section.totalCount : 0}
+              color={colors.accent}
+              trackColor={colors.border}
+            />
+          </View>
+        )}
+        renderItem={({ item: row }) => (
+          <View style={styles.row}>
+            {row.map((country) => {
+              const stats = statsByCode[country.code];
+              const level = stats?.level || 0;
+              const visited = level > 0;
+              const badgeColor = visited ? getLevelColor(level) : colors.locked;
+              const textColor = visited ? getLevelTextColor(level) : colors.lockedText;
+
+              return (
+                <TouchableOpacity
+                  key={country.code}
+                  disabled={!visited}
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedCountry(country)}
+                  style={[
+                    styles.badge,
+                    { backgroundColor: badgeColor, borderColor: visited ? badgeColor : colors.lockedBorder },
+                  ]}
+                >
+                  {level === 6 && (
+                    <View style={styles.starBadge}>
+                      <Ionicons name="star" size={10} color="#fff" />
+                    </View>
+                  )}
+                  <Text style={[styles.flag, !visited && styles.flagLocked]}>{country.flag}</Text>
+                  <Text style={[styles.name, { color: textColor }]} numberOfLines={2}>
+                    {country.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            {/* Complète la dernière ligne d'une section pour garder des badges alignés */}
+            {row.length < NUM_COLUMNS &&
+              Array.from({ length: NUM_COLUMNS - row.length }).map((_, i) => (
+                <View key={`filler-${i}`} style={styles.badgeFiller} />
+              ))}
+          </View>
+        )}
+      />
+
+      <CountryStatsModal
+        visible={Boolean(selectedCountry)}
+        country={selectedCountry}
+        stats={selectedCountry ? statsByCode[selectedCountry.code] : null}
+        onClose={() => setSelectedCountry(null)}
+        onViewPlaces={() => {
+          const code = selectedCountry?.code;
+          setSelectedCountry(null);
+          navigation.navigate('Mes lieux', { focusCountryCode: code });
+        }}
+      />
+    </>
   );
 }
 
@@ -170,16 +206,10 @@ const styles = StyleSheet.create({
     margin: 6,
     minHeight: 92,
     borderRadius: radius.lg,
-    backgroundColor: colors.accentSoft,
     borderWidth: 1,
-    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.sm,
-  },
-  badgeLocked: {
-    backgroundColor: colors.locked,
-    borderColor: colors.lockedBorder,
   },
   badgeFiller: {
     flex: 1,
@@ -187,6 +217,26 @@ const styles = StyleSheet.create({
   },
   flag: { fontSize: 32, marginBottom: 6 },
   flagLocked: { opacity: 0.3 },
-  name: { fontSize: 12, textAlign: 'center', fontWeight: '700', color: colors.accentDark },
-  nameLocked: { color: colors.lockedText },
+  name: { fontSize: 12, textAlign: 'center', fontWeight: '700' },
+  starBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: radius.pill,
+    backgroundColor: '#D4A017',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    zIndex: 1,
+  },
+  legend: {
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    alignItems: 'center',
+  },
+  legendTitle: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 2 },
+  legendLine: { fontSize: 11, color: colors.textMuted },
 });
