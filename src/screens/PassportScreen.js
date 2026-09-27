@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { COUNTRIES, CONTINENTS } from '../data/countries';
 import { useCountryStats } from '../hooks/useCountryStats';
 import CountryStatsModal from '../components/CountryStatsModal';
+import TravelerProfile from '../components/TravelerProfile';
+import LevelLegendModal from '../components/LevelLegendModal';
 import { colors, radius, spacing, shadow, getLevelColor, getLevelTextColor } from '../theme/theme';
 
 // Nombre de badges par ligne
@@ -35,6 +37,7 @@ function ProgressBar({ progress, color, trackColor }) {
 export default function PassportScreen({ navigation }) {
   const { byCode: statsByCode } = useCountryStats();
   const [selectedCountry, setSelectedCountry] = useState(null);
+  const [legendVisible, setLegendVisible] = useState(false);
 
   const visitedCodes = useMemo(
     () => new Set(Object.keys(statsByCode)),
@@ -67,27 +70,28 @@ export default function PassportScreen({ navigation }) {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
-          <LinearGradient
-            colors={[colors.primary, colors.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.overallHeader}
-          >
-            <Text style={styles.overallHeaderValue}>
-              {totalVisited}
-              <Text style={styles.overallHeaderTotal}> / {COUNTRIES.length}</Text>
-            </Text>
-            <Text style={styles.overallHeaderLabel}>pays débloqués au total</Text>
-          </LinearGradient>
+          <View>
+            <LinearGradient
+              colors={[colors.primary, colors.primaryDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.overallHeader}
+            >
+              <Text style={styles.overallHeaderValue}>
+                {totalVisited}
+                <Text style={styles.overallHeaderTotal}> / {COUNTRIES.length}</Text>
+              </Text>
+              <Text style={styles.overallHeaderLabel}>pays débloqués au total</Text>
+            </LinearGradient>
+
+            <TravelerProfile statsByCode={statsByCode} />
+          </View>
         }
         ListFooterComponent={
-          <View style={styles.legend}>
-            <Text style={styles.legendTitle}>Niveaux de connaissance d'un pays (1 à 6)</Text>
-            <Text style={styles.legendLine}>Nombre de villes visitées, ou score de progression</Text>
-            <Text style={styles.legendLine}>
-              adapté à la taille du pays (la capitale compte triple)
-            </Text>
-          </View>
+          <TouchableOpacity style={styles.legendButton} onPress={() => setLegendVisible(true)}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+            <Text style={styles.legendButtonText}>Comment fonctionnent les niveaux ?</Text>
+          </TouchableOpacity>
         }
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
@@ -156,6 +160,8 @@ export default function PassportScreen({ navigation }) {
           navigation.navigate('Mes lieux', { focusCountryCode: code });
         }}
       />
+
+      <LevelLegendModal visible={legendVisible} onClose={() => setLegendVisible(false)} />
     </>
   );
 }
@@ -232,11 +238,13 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     zIndex: 1,
   },
-  legend: {
+  legendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: spacing.md,
     marginBottom: spacing.lg,
-    alignItems: 'center',
+    gap: spacing.xs,
   },
-  legendTitle: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 2 },
-  legendLine: { fontSize: 11, color: colors.textMuted },
+  legendButtonText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
 });
