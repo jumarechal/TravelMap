@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, SectionList, TouchableOpacity, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { usePlaces } from '../context/PlacesContext';
 import { COUNTRIES, CONTINENTS } from '../data/countries';
+import { colors, radius, spacing, shadow } from '../theme/theme';
 
 // Nombre de badges par ligne
 const NUM_COLUMNS = 3;
@@ -15,6 +17,15 @@ function chunk(array, size) {
     rows.push(array.slice(i, i + size));
   }
   return rows;
+}
+
+// Petite barre de progression horizontale (utilisée pour le score par continent)
+function ProgressBar({ progress, color, trackColor }) {
+  return (
+    <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
+      <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: color }]} />
+    </View>
+  );
 }
 
 // Écran "Passeport" : un badge par pays du monde, regroupés par continent.
@@ -50,21 +61,35 @@ export default function PassportScreen({ navigation }) {
       style={styles.container}
       sections={sections}
       keyExtractor={(row, index) => `${row[0].code}-row-${index}`}
-      stickySectionHeadersEnabled
+      stickySectionHeadersEnabled={false}
       contentContainerStyle={styles.list}
       ListHeaderComponent={
-        <View style={styles.overallHeader}>
-          <Text style={styles.overallHeaderText}>
-            {totalVisited} / {COUNTRIES.length} pays débloqués au total
+        <LinearGradient
+          colors={[colors.primary, colors.primaryDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.overallHeader}
+        >
+          <Text style={styles.overallHeaderValue}>
+            {totalVisited}
+            <Text style={styles.overallHeaderTotal}> / {COUNTRIES.length}</Text>
           </Text>
-        </View>
+          <Text style={styles.overallHeaderLabel}>pays débloqués au total</Text>
+        </LinearGradient>
       }
       renderSectionHeader={({ section }) => (
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{section.continent}</Text>
-          <Text style={styles.sectionCount}>
-            {section.visitedCount} / {section.totalCount} pays visités
-          </Text>
+          <View style={styles.sectionHeaderTop}>
+            <Text style={styles.sectionTitle}>{section.continent}</Text>
+            <Text style={styles.sectionCount}>
+              {section.visitedCount} / {section.totalCount}
+            </Text>
+          </View>
+          <ProgressBar
+            progress={section.totalCount ? section.visitedCount / section.totalCount : 0}
+            color={colors.accent}
+            trackColor={colors.border}
+          />
         </View>
       )}
       renderItem={({ item: row }) => (
@@ -100,46 +125,68 @@ export default function PassportScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  list: { paddingHorizontal: 10, paddingBottom: 20 },
-  overallHeader: { paddingVertical: 14, alignItems: 'center' },
-  overallHeaderText: { fontSize: 16, fontWeight: '700' },
+  container: { flex: 1, backgroundColor: colors.background },
+  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
+  overallHeader: {
+    borderRadius: radius.xl,
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    ...shadow.floating,
+  },
+  overallHeaderValue: { color: '#fff', fontSize: 34, fontWeight: '800' },
+  overallHeaderTotal: { color: 'rgba(255,255,255,0.7)', fontSize: 20, fontWeight: '600' },
+  overallHeaderLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600', marginTop: 4 },
   sectionHeader: {
-    backgroundColor: '#2f6fed',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: radius.lg,
+    ...shadow.card,
+  },
+  sectionHeaderTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing.sm,
   },
-  sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  sectionCount: { color: '#e8f0fe', fontSize: 13, fontWeight: '600' },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  sectionCount: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
+  progressTrack: {
+    height: 6,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+  },
   row: { flexDirection: 'row' },
   badge: {
     flex: 1,
     margin: 6,
     minHeight: 92,
-    borderRadius: 12,
-    backgroundColor: '#fff7e6',
+    borderRadius: radius.lg,
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
-    borderColor: '#f5a623',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
+    padding: spacing.sm,
   },
   badgeLocked: {
-    backgroundColor: '#f0f0f0',
-    borderColor: '#ddd',
+    backgroundColor: colors.locked,
+    borderColor: colors.lockedBorder,
   },
   badgeFiller: {
     flex: 1,
     margin: 6,
   },
   flag: { fontSize: 32, marginBottom: 6 },
-  flagLocked: { opacity: 0.25 },
-  name: { fontSize: 12, textAlign: 'center', fontWeight: '600', color: '#333' },
-  nameLocked: { color: '#aaa' },
+  flagLocked: { opacity: 0.3 },
+  name: { fontSize: 12, textAlign: 'center', fontWeight: '700', color: colors.accentDark },
+  nameLocked: { color: colors.lockedText },
 });

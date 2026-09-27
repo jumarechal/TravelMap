@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
+import { colors, radius, spacing, shadow } from '../theme/theme';
 
 // Petit badge qui affiche le nombre de pays visités,
 // déduit du nombre de pays différents parmi les lieux enregistrés.
@@ -10,6 +12,7 @@ export default function CountrySummary() {
 
   return (
     <View style={styles.container}>
+      <Ionicons name="earth" size={16} color={colors.primary} style={styles.icon} />
       <Text style={styles.text}>
         {countryCount} pays visité{countryCount > 1 ? 's' : ''}
       </Text>
@@ -19,20 +22,19 @@ export default function CountrySummary() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
     alignSelf: 'flex-start',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    ...shadow.card,
   },
+  icon: { marginRight: 6 },
   text: {
-    fontWeight: '600',
-    fontSize: 14,
-    color: '#222',
+    fontWeight: '700',
+    fontSize: 13,
+    color: colors.text,
   },
 });

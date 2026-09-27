@@ -1,10 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { Marker, Circle, Polygon } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
 import AddPlaceModal from '../components/AddPlaceModal';
 import CountrySummary from '../components/CountrySummary';
 import { geometryToPolygons } from '../utils/geojson';
+import { colors, shadow } from '../theme/theme';
 
 // Rayon (en mètres) du cercle "zone connue" dessiné autour de chaque lieu
 const KNOWN_ZONE_RADIUS_METERS = 7500;
@@ -23,8 +25,10 @@ const FOCUS_DELTA = 0.4;
 
 // Couleur pâle et discrète utilisée pour mettre en avant, sur la carte,
 // les pays où l'on a déjà dormi au moins une fois
-const VISITED_COUNTRY_FILL = 'rgba(245, 166, 35, 0.22)';
-const VISITED_COUNTRY_STROKE = 'rgba(245, 166, 35, 0.8)';
+const VISITED_COUNTRY_FILL = 'rgba(255, 139, 94, 0.22)';
+const VISITED_COUNTRY_STROKE = 'rgba(233, 111, 63, 0.8)';
+const KNOWN_ZONE_STROKE = 'rgba(76, 95, 224, 0.6)';
+const KNOWN_ZONE_FILL = 'rgba(76, 95, 224, 0.15)';
 
 export default function MapScreen() {
   const { places, countryBoundaries, addPlace } = usePlaces();
@@ -84,8 +88,8 @@ export default function MapScreen() {
             <Circle
               center={{ latitude: place.latitude, longitude: place.longitude }}
               radius={KNOWN_ZONE_RADIUS_METERS}
-              strokeColor="rgba(47, 111, 237, 0.6)"
-              fillColor="rgba(47, 111, 237, 0.15)"
+              strokeColor={KNOWN_ZONE_STROKE}
+              fillColor={KNOWN_ZONE_FILL}
             />
           </React.Fragment>
         ))}
@@ -95,8 +99,12 @@ export default function MapScreen() {
         <CountrySummary />
       </View>
 
-      <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-        <Text style={styles.addButtonText}>+</Text>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => setModalVisible(true)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
 
       <AddPlaceModal
@@ -120,21 +128,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 24,
     bottom: 32,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#2f6fed',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 30,
-    lineHeight: 32,
+    ...shadow.floating,
   },
 });

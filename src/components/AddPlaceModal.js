@@ -10,7 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress } from '../services/geocoding';
+import { colors, radius, spacing, shadow } from '../theme/theme';
 
 // Fenêtre modale affichée quand on appuie sur le bouton "+".
 // Elle permet de saisir une adresse, de la géocoder, puis d'ajouter le lieu.
@@ -64,16 +66,27 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.card}>
-          <Text style={styles.title}>Ajouter un lieu où j'ai dormi</Text>
+          <View style={styles.handle} />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris"
-            value={query}
-            onChangeText={setQuery}
-            autoFocus
-            editable={!loading}
-          />
+          <View style={styles.titleRow}>
+            <View style={styles.titleIcon}>
+              <Ionicons name="bed-outline" size={18} color={colors.primary} />
+            </View>
+            <Text style={styles.title}>Ajouter un lieu où j'ai dormi</Text>
+          </View>
+
+          <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
+            <Ionicons name="location-outline" size={18} color={colors.textMuted} />
+            <TextInput
+              style={styles.input}
+              placeholder="Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris"
+              placeholderTextColor={colors.textMuted}
+              value={query}
+              onChangeText={setQuery}
+              autoFocus
+              editable={!loading}
+            />
+          </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -82,7 +95,12 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
               <Text style={styles.cancelText}>Annuler</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
+            <TouchableOpacity
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
@@ -100,56 +118,98 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(29, 32, 48, 0.5)',
   },
   card: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
-    paddingBottom: 32,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: 36,
+  },
+  handle: {
+    width: 40,
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  titleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  inputWrapperError: {
+    borderColor: colors.danger,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
+    flex: 1,
+    paddingVertical: 14,
     fontSize: 16,
+    color: colors.text,
   },
   error: {
-    color: '#d33',
-    marginTop: 8,
+    color: colors.danger,
+    marginTop: spacing.sm,
+    fontSize: 13,
   },
   buttonsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
   },
   cancelText: {
-    color: '#666',
-    fontSize: 16,
+    color: colors.textMuted,
+    fontSize: 15,
+    fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#2f6fed',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    minWidth: 90,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.xl,
+    minWidth: 100,
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: spacing.sm,
+    ...shadow.card,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
   submitText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
