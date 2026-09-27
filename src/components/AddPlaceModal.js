@@ -44,6 +44,7 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
         name: query.trim(),
         displayName: geo.displayName,
         country: geo.country,
+        countryCode: geo.countryCode,
         latitude: geo.latitude,
         longitude: geo.longitude,
       });

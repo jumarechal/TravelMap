@@ -6,6 +6,7 @@ import {
   saveCountryBoundaries,
 } from '../services/storage';
 import { fetchCountryBoundary } from '../services/countryBoundaries';
+import { reverseGeocodeCountryCode } from '../services/geocoding';
 
 // Ce contexte centralise la liste des lieux visités (et le contour des pays
 // correspondants), pour que l'écran Carte et l'écran Liste partagent toujours
@@ -28,6 +29,13 @@ export function PlacesProvider({ children }) {
       setCountryBoundaries(storedBoundaries);
       setLoading(false);
 
+      // Complète le code pays (ISO) des lieux ajoutés avant l'écran Passeport,
+      // qui n'ont donc pas encore ce champ enregistré
+      const placesMissingCode = storedPlaces.filter((p) => !p.countryCode);
+      if (placesMissingCode.length > 0) {
+        await backfillCountryCodes(placesMissingCode);
+      }
+
       // Si des lieux ont été ajoutés sans que leur pays soit encore en cache
       // (ex: après une réinstallation), on va chercher les contours manquants
       const missingCountries = [...new Set(storedPlaces.map((p) => p.country))].filter(
@@ -38,6 +46,21 @@ export function PlacesProvider({ children }) {
       }
     })();
   }, []);
+
+  // Retrouve le code pays (ISO) d'anciens lieux qui n'en ont pas encore,
+  // via un reverse-géocodage sur leurs coordonnées, puis sauvegarde le résultat
+  const backfillCountryCodes = async (placesMissingCode) => {
+    for (const place of placesMissingCode) {
+      const countryCode = await reverseGeocodeCountryCode(place.latitude, place.longitude);
+      if (!countryCode) continue;
+
+      setPlaces((current) => {
+        const updated = current.map((p) => (p.id === place.id ? { ...p, countryCode } : p));
+        savePlaces(updated);
+        return updated;
+      });
+    }
+  };
 
   // Télécharge (si besoin) et met en cache le contour d'un pays.
   // On utilise une fonction qui lit toujours le state le plus récent via son
