@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, SectionList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
 import CountrySummary from '../components/CountrySummary';
 import { COUNTRIES } from '../data/countries';
+import { colors, radius, spacing, shadow } from '../theme/theme';
 
 export default function ListScreen({ route }) {
   const { places, removePlace, loading } = usePlaces();
@@ -63,7 +65,7 @@ export default function ListScreen({ route }) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <Text>Chargement...</Text>
+        <Text style={styles.emptyText}>Chargement...</Text>
       </View>
     );
   }
@@ -71,6 +73,9 @@ export default function ListScreen({ route }) {
   if (places.length === 0) {
     return (
       <View style={styles.center}>
+        <View style={styles.emptyIcon}>
+          <Ionicons name="bed-outline" size={28} color={colors.textMuted} />
+        </View>
         <Text style={styles.emptyText}>Aucun lieu ajouté pour le moment.</Text>
         <Text style={styles.emptyHint}>Utilise le bouton "+" sur la carte pour en ajouter un.</Text>
       </View>
@@ -83,7 +88,7 @@ export default function ListScreen({ route }) {
       sections={sections}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.list}
-      stickySectionHeadersEnabled
+      stickySectionHeadersEnabled={false}
       onScrollToIndexFailed={() => {}}
       ListHeaderComponent={
         <View style={styles.summaryContainer}>
@@ -92,22 +97,27 @@ export default function ListScreen({ route }) {
       }
       renderSectionHeader={({ section }) => (
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionFlag}>{section.flag}</Text>
+          <View style={styles.sectionFlagBadge}>
+            <Text style={styles.sectionFlag}>{section.flag}</Text>
+          </View>
           <Text style={styles.sectionTitle} numberOfLines={1}>
             {section.title}
           </Text>
-          <Text style={styles.sectionCount}>
-            {section.data.length} lieu{section.data.length > 1 ? 'x' : ''}
-          </Text>
+          <View style={styles.sectionCountPill}>
+            <Text style={styles.sectionCount}>{section.data.length}</Text>
+          </View>
         </View>
       )}
       renderItem={({ item }) => (
         <View style={styles.row}>
+          <View style={styles.rowIcon}>
+            <Ionicons name="bed-outline" size={18} color={colors.primary} />
+          </View>
           <View style={styles.rowText}>
             <Text style={styles.name}>{item.name}</Text>
           </View>
           <TouchableOpacity onPress={() => confirmDelete(item)} style={styles.deleteButton}>
-            <Text style={styles.deleteText}>Supprimer</Text>
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
           </TouchableOpacity>
         </View>
       )}
@@ -116,40 +126,71 @@ export default function ListScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyText: { color: '#888', fontSize: 16, textAlign: 'center' },
-  emptyHint: { color: '#aaa', fontSize: 14, marginTop: 6, textAlign: 'center' },
-  list: { padding: 16 },
-  summaryContainer: { marginBottom: 12, alignItems: 'flex-start' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.pill,
+    backgroundColor: colors.locked,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  emptyText: { color: colors.textMuted, fontSize: 16, textAlign: 'center', fontWeight: '600' },
+  emptyHint: { color: colors.textMuted, fontSize: 13, marginTop: 6, textAlign: 'center' },
+  list: { padding: spacing.lg, backgroundColor: colors.background },
+  summaryContainer: { marginBottom: spacing.md, alignItems: 'flex-start' },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2f6fed',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
-  sectionFlag: { fontSize: 20, marginRight: 8 },
-  sectionTitle: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '700' },
-  sectionCount: { color: '#e8f0fe', fontSize: 13, fontWeight: '600' },
+  sectionFlagBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    ...shadow.card,
+  },
+  sectionFlag: { fontSize: 15 },
+  sectionTitle: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '700' },
+  sectionCountPill: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  sectionCount: { color: colors.primaryDark, fontSize: 12, fontWeight: '700' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...shadow.card,
   },
-  rowText: { flex: 1, marginRight: 10 },
-  name: { fontSize: 16, fontWeight: '600' },
+  rowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  rowText: { flex: 1, marginRight: spacing.sm },
+  name: { fontSize: 15, fontWeight: '600', color: colors.text },
   deleteButton: {
-    backgroundColor: '#e33',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: radius.md,
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  deleteText: { color: '#fff', fontWeight: '600' },
 });
