@@ -13,6 +13,20 @@ export default function ListScreen({ route }) {
   const sectionListRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPlace, setEditingPlace] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  // Affiche/masque l'adresse complète d'un lieu sous son nom de ville
+  const toggleExpanded = (id) => {
+    setExpandedIds((current) => {
+      const updated = new Set(current);
+      if (updated.has(id)) {
+        updated.delete(id);
+      } else {
+        updated.add(id);
+      }
+      return updated;
+    });
+  };
 
   // Demande une confirmation avant de supprimer un lieu (pour éviter les erreurs de clic)
   const confirmDelete = (place) => {
@@ -30,6 +44,7 @@ export default function ListScreen({ route }) {
       ? places.filter(
           (place) =>
             normalize(place.name).includes(query) ||
+            normalize(place.city || '').includes(query) ||
             normalize(place.country || '').includes(query)
         )
       : places;
@@ -148,20 +163,42 @@ export default function ListScreen({ route }) {
         )}
         renderItem={({ item }) => {
           const isHome = item.id === homePlaceId;
+          const displayTitle = item.city || item.name;
+          // On ne propose de déplier que si l'adresse saisie apporte une
+          // information de plus que le simple nom de ville affiché
+          const hasAddressDetail =
+            item.city && normalize(item.city) !== normalize(item.name);
+          const isExpanded = expandedIds.has(item.id);
 
           return (
             <View style={[styles.row, isHome && styles.rowHome]}>
-              <View style={[styles.rowIcon, isHome && styles.rowIconHome]}>
-                <Ionicons
-                  name={isHome ? 'home' : 'bed-outline'}
-                  size={18}
-                  color={isHome ? colors.accentDark : colors.primary}
-                />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={[styles.name, isHome && styles.nameHome]}>{item.name}</Text>
-                {isHome && <Text style={styles.homeLabel}>Domicile principal</Text>}
-              </View>
+              <TouchableOpacity
+                style={styles.rowMain}
+                activeOpacity={hasAddressDetail ? 0.6 : 1}
+                onPress={() => hasAddressDetail && toggleExpanded(item.id)}
+              >
+                <View style={[styles.rowIcon, isHome && styles.rowIconHome]}>
+                  <Ionicons
+                    name={isHome ? 'home' : 'bed-outline'}
+                    size={18}
+                    color={isHome ? colors.accentDark : colors.primary}
+                  />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={[styles.name, isHome && styles.nameHome]}>{displayTitle}</Text>
+                  {isHome && <Text style={styles.homeLabel}>Domicile principal</Text>}
+                  {hasAddressDetail && isExpanded && (
+                    <Text style={styles.address}>{item.name}</Text>
+                  )}
+                </View>
+                {hasAddressDetail && (
+                  <Ionicons
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={colors.textMuted}
+                  />
+                )}
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setHomePlace(isHome ? null : item.id)}
                 style={styles.homeButton}
@@ -276,10 +313,16 @@ const styles = StyleSheet.create({
   rowIconHome: {
     backgroundColor: '#fff',
   },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   rowText: { flex: 1, marginRight: spacing.sm },
   name: { fontSize: 15, fontWeight: '600', color: colors.text },
   nameHome: { fontWeight: '800', color: colors.accentDark },
   homeLabel: { fontSize: 11, fontWeight: '700', color: colors.accentDark, marginTop: 2 },
+  address: { fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 16 },
   homeButton: {
     width: 34,
     height: 34,
