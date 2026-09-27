@@ -5,6 +5,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,20 +13,27 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress } from '../services/geocoding';
+import { storePhoto } from '../services/photoStorage';
 import { colors, radius, spacing, shadow } from '../theme/theme';
 import DateField from './DateField';
+import NoteField from './NoteField';
+import PhotoPicker from './PhotoPicker';
 
 // Fenêtre modale affichée quand on appuie sur le bouton "+".
 // Elle permet de saisir une adresse, de la géocoder, puis d'ajouter le lieu.
 export default function AddPlaceModal({ visible, onClose, onAdd }) {
   const [query, setQuery] = useState('');
   const [date, setDate] = useState(null);
+  const [note, setNote] = useState('');
+  const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const handleClose = () => {
     setQuery('');
     setDate(null);
+    setNote('');
+    setPhotos([]);
     setError(null);
     onClose();
   };
@@ -43,7 +51,10 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
       // 1. On demande à Nominatim de transformer le texte en coordonnées GPS
       const geo = await geocodeAddress(query.trim());
 
-      // 2. On ajoute le nouveau lieu dans le contexte (et donc dans AsyncStorage)
+      // 2. On copie les photos choisies dans le stockage propre à l'app
+      const storedPhotos = await Promise.all(photos.map((uri) => storePhoto(uri)));
+
+      // 3. On ajoute le nouveau lieu dans le contexte (et donc dans AsyncStorage)
       await onAdd({
         id: Date.now().toString(),
         name: query.trim(),
@@ -55,6 +66,8 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
         longitude: geo.longitude,
         // Date au format AAAA-MM-JJ, ou null si non renseignée
         date: date ? date.toISOString().slice(0, 10) : null,
+        note: note.trim() || null,
+        photos: storedPhotos,
       });
 
       handleClose();
@@ -94,7 +107,15 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
             />
           </View>
 
-          <DateField value={date} onChange={setDate} />
+          <ScrollView style={styles.scrollArea} keyboardShouldPersistTaps="handled">
+            <DateField value={date} onChange={setDate} />
+            <View style={styles.fieldSpacer}>
+              <NoteField value={note} onChange={setNote} />
+            </View>
+            <View style={styles.fieldSpacer}>
+              <PhotoPicker photos={photos} onChange={setPhotos} />
+            </View>
+          </ScrollView>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -176,6 +197,12 @@ const styles = StyleSheet.create({
   },
   inputWrapperError: {
     borderColor: colors.danger,
+  },
+  scrollArea: {
+    maxHeight: 280,
+  },
+  fieldSpacer: {
+    marginTop: spacing.md,
   },
   input: {
     flex: 1,

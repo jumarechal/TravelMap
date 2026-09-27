@@ -5,6 +5,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,14 +13,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress } from '../services/geocoding';
+import { storePhoto, isStoredPhoto, deleteStoredPhoto } from '../services/photoStorage';
 import { colors, radius, spacing, shadow } from '../theme/theme';
 import DateField from './DateField';
+import NoteField from './NoteField';
+import PhotoPicker from './PhotoPicker';
 
 // Fenêtre modale pour corriger un lieu déjà enregistré : son adresse
-// (re-géocodée, au cas où elle change) et/ou sa date de séjour.
+// (re-géocodée, au cas où elle change), sa date, sa note et ses photos.
 export default function EditPlaceModal({ visible, place, onClose, onSave }) {
   const [query, setQuery] = useState('');
   const [date, setDate] = useState(null);
+  const [note, setNote] = useState('');
+  const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -28,6 +34,8 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
     if (place) {
       setQuery(place.name);
       setDate(place.date ? new Date(place.date) : null);
+      setNote(place.note || '');
+      setPhotos(place.photos || []);
       setError(null);
     }
   }, [place]);
@@ -49,6 +57,16 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
     try {
       const geo = await geocodeAddress(query.trim());
 
+      // Copie les photos nouvellement ajoutées dans le stockage de l'app
+      // (celles déjà stockées le sont déjà, on ne les retouche pas)
+      const finalPhotos = await Promise.all(
+        photos.map((uri) => (isStoredPhoto(uri) ? uri : storePhoto(uri)))
+      );
+
+      // Supprime les fichiers des photos retirées pendant cette édition
+      const removedPhotos = (place.photos || []).filter((uri) => !photos.includes(uri));
+      await Promise.all(removedPhotos.map((uri) => deleteStoredPhoto(uri)));
+
       await onSave(place.id, {
         name: query.trim(),
         displayName: geo.displayName,
@@ -58,6 +76,8 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
         latitude: geo.latitude,
         longitude: geo.longitude,
         date: date ? date.toISOString().slice(0, 10) : null,
+        note: note.trim() || null,
+        photos: finalPhotos,
       });
 
       handleClose();
@@ -96,7 +116,15 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
             />
           </View>
 
-          <DateField value={date} onChange={setDate} />
+          <ScrollView style={styles.scrollArea} keyboardShouldPersistTaps="handled">
+            <DateField value={date} onChange={setDate} />
+            <View style={styles.fieldSpacer}>
+              <NoteField value={note} onChange={setNote} />
+            </View>
+            <View style={styles.fieldSpacer}>
+              <PhotoPicker photos={photos} onChange={setPhotos} />
+            </View>
+          </ScrollView>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -184,6 +212,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: colors.text,
+  },
+  scrollArea: {
+    maxHeight: 280,
+  },
+  fieldSpacer: {
+    marginTop: spacing.md,
   },
   error: {
     color: colors.danger,

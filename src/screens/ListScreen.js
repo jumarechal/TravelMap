@@ -1,9 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TextInput, SectionList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Image,
+  SectionList,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
 import CountrySummary from '../components/CountrySummary';
 import EditPlaceModal from '../components/EditPlaceModal';
+import PhotoViewerModal from '../components/PhotoViewerModal';
 import { COUNTRIES } from '../data/countries';
 import { normalize } from '../utils/text';
 import { colors, radius, spacing, shadow } from '../theme/theme';
@@ -14,6 +25,7 @@ export default function ListScreen({ route }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPlace, setEditingPlace] = useState(null);
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [viewingPhotos, setViewingPhotos] = useState(null);
 
   // Affiche/masque l'adresse complète d'un lieu sous son nom de ville
   const toggleExpanded = (id) => {
@@ -165,56 +177,87 @@ export default function ListScreen({ route }) {
           const isHome = item.id === homePlaceId;
           const displayTitle = item.city || item.name;
           // On ne propose de déplier que si l'adresse saisie apporte une
-          // information de plus que le simple nom de ville affiché
+          // information de plus que le simple nom de ville affiché, ou s'il
+          // y a une note/des photos à montrer
           const hasAddressDetail =
             item.city && normalize(item.city) !== normalize(item.name);
+          const hasPhotos = item.photos && item.photos.length > 0;
+          const canExpand = hasAddressDetail || Boolean(item.note) || hasPhotos;
           const isExpanded = expandedIds.has(item.id);
 
           return (
-            <View style={[styles.row, isHome && styles.rowHome]}>
-              <TouchableOpacity
-                style={styles.rowMain}
-                activeOpacity={hasAddressDetail ? 0.6 : 1}
-                onPress={() => hasAddressDetail && toggleExpanded(item.id)}
-              >
-                <View style={[styles.rowIcon, isHome && styles.rowIconHome]}>
+            <View style={[styles.card, isHome && styles.cardHome]}>
+              <View style={styles.row}>
+                <TouchableOpacity
+                  style={styles.rowMain}
+                  activeOpacity={canExpand ? 0.6 : 1}
+                  onPress={() => canExpand && toggleExpanded(item.id)}
+                >
+                  <View style={[styles.rowIcon, isHome && styles.rowIconHome]}>
+                    <Ionicons
+                      name={isHome ? 'home' : 'bed-outline'}
+                      size={18}
+                      color={isHome ? colors.accentDark : colors.primary}
+                    />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={[styles.name, isHome && styles.nameHome]}>{displayTitle}</Text>
+                    {isHome && <Text style={styles.homeLabel}>Domicile principal</Text>}
+                  </View>
+                  {canExpand && (
+                    <Ionicons
+                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                      color={colors.textMuted}
+                    />
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setHomePlace(isHome ? null : item.id)}
+                  style={styles.homeButton}
+                >
                   <Ionicons
-                    name={isHome ? 'home' : 'bed-outline'}
+                    name={isHome ? 'home' : 'home-outline'}
                     size={18}
-                    color={isHome ? colors.accentDark : colors.primary}
+                    color={isHome ? colors.accent : colors.textMuted}
                   />
-                </View>
-                <View style={styles.rowText}>
-                  <Text style={[styles.name, isHome && styles.nameHome]}>{displayTitle}</Text>
-                  {isHome && <Text style={styles.homeLabel}>Domicile principal</Text>}
-                  {hasAddressDetail && isExpanded && (
-                    <Text style={styles.address}>{item.name}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setEditingPlace(item)} style={styles.editButton}>
+                  <Ionicons name="create-outline" size={18} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => confirmDelete(item)} style={styles.deleteButton}>
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+
+              {canExpand && isExpanded && (
+                <View style={styles.expandedBlock}>
+                  {hasAddressDetail && (
+                    <View style={styles.expandedRow}>
+                      <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+                      <Text style={styles.expandedText}>{item.name}</Text>
+                    </View>
+                  )}
+                  {item.note && (
+                    <View style={styles.expandedRow}>
+                      <Ionicons name="document-text-outline" size={14} color={colors.textMuted} />
+                      <Text style={styles.expandedText}>{item.note}</Text>
+                    </View>
+                  )}
+                  {hasPhotos && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosRow}>
+                      {item.photos.map((uri, index) => (
+                        <TouchableOpacity
+                          key={uri}
+                          onPress={() => setViewingPhotos({ photos: item.photos, index })}
+                        >
+                          <Image source={{ uri }} style={styles.photoThumb} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   )}
                 </View>
-                {hasAddressDetail && (
-                  <Ionicons
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color={colors.textMuted}
-                  />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setHomePlace(isHome ? null : item.id)}
-                style={styles.homeButton}
-              >
-                <Ionicons
-                  name={isHome ? 'home' : 'home-outline'}
-                  size={18}
-                  color={isHome ? colors.accent : colors.textMuted}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setEditingPlace(item)} style={styles.editButton}>
-                <Ionicons name="create-outline" size={18} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => confirmDelete(item)} style={styles.deleteButton}>
-                <Ionicons name="trash-outline" size={18} color={colors.danger} />
-              </TouchableOpacity>
+              )}
             </View>
           );
         }}
@@ -225,6 +268,13 @@ export default function ListScreen({ route }) {
         place={editingPlace}
         onClose={() => setEditingPlace(null)}
         onSave={updatePlace}
+      />
+
+      <PhotoViewerModal
+        visible={Boolean(viewingPhotos)}
+        photos={viewingPhotos?.photos}
+        initialIndex={viewingPhotos?.index || 0}
+        onClose={() => setViewingPhotos(null)}
       />
     </>
   );
@@ -287,19 +337,21 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   sectionCount: { color: colors.primaryDark, fontSize: 12, fontWeight: '700' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.md,
     marginBottom: spacing.sm,
     ...shadow.card,
   },
-  rowHome: {
+  cardHome: {
     borderWidth: 1.5,
     borderColor: colors.accent,
     backgroundColor: colors.accentSoft,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   rowIcon: {
     width: 36,
@@ -322,7 +374,27 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '600', color: colors.text },
   nameHome: { fontWeight: '800', color: colors.accentDark },
   homeLabel: { fontSize: 11, fontWeight: '700', color: colors.accentDark, marginTop: 2 },
-  address: { fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 16 },
+  expandedBlock: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  expandedRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  expandedText: { flex: 1, fontSize: 13, color: colors.textMuted, lineHeight: 18 },
+  photosRow: { flexGrow: 0 },
+  photoThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
+    marginRight: spacing.sm,
+    backgroundColor: colors.locked,
+  },
   homeButton: {
     width: 34,
     height: 34,
