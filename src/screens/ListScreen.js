@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { usePlaces } from '../context/PlacesContext';
+import CountrySummary from '../components/CountrySummary';
 
 export default function ListScreen() {
   const { places, removePlace, loading } = usePlaces();
@@ -35,6 +36,11 @@ export default function ListScreen() {
       data={places}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.list}
+      ListHeaderComponent={
+        <View style={styles.summaryContainer}>
+          <CountrySummary />
+        </View>
+      }
       renderItem={({ item }) => (
         <View style={styles.row}>
           <View style={styles.rowText}>
@@ -55,6 +61,7 @@ const styles = StyleSheet.create({
   emptyText: { color: '#888', fontSize: 16, textAlign: 'center' },
   emptyHint: { color: '#aaa', fontSize: 14, marginTop: 6, textAlign: 'center' },
   list: { padding: 16 },
+  summaryContainer: { marginBottom: 12, alignItems: 'flex-start' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
