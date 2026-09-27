@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, SectionList, StyleSheet } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, StyleSheet } from 'react-native';
 import { usePlaces } from '../context/PlacesContext';
 import { COUNTRIES, CONTINENTS } from '../data/countries';
 
@@ -19,7 +19,7 @@ function chunk(array, size) {
 
 // Écran "Passeport" : un badge par pays du monde, regroupés par continent.
 // Un badge est en couleur si on a déjà dormi dans ce pays, grisé sinon.
-export default function PassportScreen() {
+export default function PassportScreen({ navigation }) {
   const { places } = usePlaces();
 
   // Ensemble des codes pays (ISO) déjà visités, déduit des lieux enregistrés
@@ -72,12 +72,20 @@ export default function PassportScreen() {
           {row.map((country) => {
             const visited = visitedCodes.has(country.code);
             return (
-              <View key={country.code} style={[styles.badge, !visited && styles.badgeLocked]}>
+              <TouchableOpacity
+                key={country.code}
+                disabled={!visited}
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate('Mes lieux', { focusCountryCode: country.code })
+                }
+                style={[styles.badge, !visited && styles.badgeLocked]}
+              >
                 <Text style={[styles.flag, !visited && styles.flagLocked]}>{country.flag}</Text>
                 <Text style={[styles.name, !visited && styles.nameLocked]} numberOfLines={2}>
                   {country.name}
                 </Text>
-              </View>
+              </TouchableOpacity>
             );
           })}
           {/* Complète la dernière ligne d'une section pour garder des badges alignés */}
