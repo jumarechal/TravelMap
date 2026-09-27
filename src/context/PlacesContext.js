@@ -4,6 +4,8 @@ import {
   savePlaces,
   getCountryBoundaries,
   saveCountryBoundaries,
+  getHomePlaceId,
+  saveHomePlaceId,
 } from '../services/storage';
 import { fetchCountryBoundary } from '../services/countryBoundaries';
 import { reverseGeocodeCountryCode } from '../services/geocoding';
@@ -16,17 +18,20 @@ const PlacesContext = createContext(null);
 export function PlacesProvider({ children }) {
   const [places, setPlaces] = useState([]);
   const [countryBoundaries, setCountryBoundaries] = useState({});
+  const [homePlaceId, setHomePlaceIdState] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Au premier lancement de l'app, on recharge les lieux et contours déjà sauvegardés
   useEffect(() => {
     (async () => {
-      const [storedPlaces, storedBoundaries] = await Promise.all([
+      const [storedPlaces, storedBoundaries, storedHomePlaceId] = await Promise.all([
         getPlaces(),
         getCountryBoundaries(),
+        getHomePlaceId(),
       ]);
       setPlaces(storedPlaces);
       setCountryBoundaries(storedBoundaries);
+      setHomePlaceIdState(storedHomePlaceId);
       setLoading(false);
 
       // Complète le code pays (ISO) des lieux ajoutés avant l'écran Passeport,
@@ -94,16 +99,47 @@ export function PlacesProvider({ children }) {
     await ensureCountryBoundary(place.country);
   };
 
+  // Remplace les champs d'un lieu existant (après correction de son adresse
+  // ou de sa date), puis sauvegarde et récupère le contour du (nouveau) pays
+  const updatePlace = async (id, updatedFields) => {
+    const updated = places.map((p) => (p.id === id ? { ...p, ...updatedFields } : p));
+    setPlaces(updated);
+    await savePlaces(updated);
+    await ensureCountryBoundary(updatedFields.country);
+  };
+
   // Supprime un lieu (par son id) et sauvegarde le résultat
   const removePlace = async (id) => {
     const updated = places.filter((p) => p.id !== id);
     setPlaces(updated);
     await savePlaces(updated);
+
+    // Si le lieu supprimé était le domicile principal, on l'oublie aussi
+    if (id === homePlaceId) {
+      setHomePlaceIdState(null);
+      await saveHomePlaceId(null);
+    }
+  };
+
+  // Marque un lieu comme domicile principal (ou l'enlève si on repasse null) :
+  // un seul lieu à la fois peut être le domicile
+  const setHomePlace = async (id) => {
+    setHomePlaceIdState(id);
+    await saveHomePlaceId(id);
   };
 
   return (
     <PlacesContext.Provider
-      value={{ places, countryBoundaries, loading, addPlace, removePlace }}
+      value={{
+        places,
+        countryBoundaries,
+        homePlaceId,
+        loading,
+        addPlace,
+        updatePlace,
+        removePlace,
+        setHomePlace,
+      }}
     >
       {children}
     </PlacesContext.Provider>
@@ -111,7 +147,7 @@ export function PlacesProvider({ children }) {
 }
 
 // Hook pratique pour accéder aux lieux depuis n'importe quel écran :
-// const { places, countryBoundaries, addPlace, removePlace } = usePlaces();
+// const { places, countryBoundaries, addPlace, updatePlace, removePlace } = usePlaces();
 export function usePlaces() {
   const context = useContext(PlacesContext);
   if (!context) {

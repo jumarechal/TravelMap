@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -15,17 +15,24 @@ import { geocodeAddress } from '../services/geocoding';
 import { colors, radius, spacing, shadow } from '../theme/theme';
 import DateField from './DateField';
 
-// Fenêtre modale affichée quand on appuie sur le bouton "+".
-// Elle permet de saisir une adresse, de la géocoder, puis d'ajouter le lieu.
-export default function AddPlaceModal({ visible, onClose, onAdd }) {
+// Fenêtre modale pour corriger un lieu déjà enregistré : son adresse
+// (re-géocodée, au cas où elle change) et/ou sa date de séjour.
+export default function EditPlaceModal({ visible, place, onClose, onSave }) {
   const [query, setQuery] = useState('');
   const [date, setDate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Pré-remplit le formulaire avec le lieu à modifier chaque fois qu'on l'ouvre
+  useEffect(() => {
+    if (place) {
+      setQuery(place.name);
+      setDate(place.date ? new Date(place.date) : null);
+      setError(null);
+    }
+  }, [place]);
+
   const handleClose = () => {
-    setQuery('');
-    setDate(null);
     setError(null);
     onClose();
   };
@@ -40,19 +47,15 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
     setError(null);
 
     try {
-      // 1. On demande à Nominatim de transformer le texte en coordonnées GPS
       const geo = await geocodeAddress(query.trim());
 
-      // 2. On ajoute le nouveau lieu dans le contexte (et donc dans AsyncStorage)
-      await onAdd({
-        id: Date.now().toString(),
+      await onSave(place.id, {
         name: query.trim(),
         displayName: geo.displayName,
         country: geo.country,
         countryCode: geo.countryCode,
         latitude: geo.latitude,
         longitude: geo.longitude,
-        // Date au format AAAA-MM-JJ, ou null si non renseignée
         date: date ? date.toISOString().slice(0, 10) : null,
       });
 
@@ -75,9 +78,9 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
 
           <View style={styles.titleRow}>
             <View style={styles.titleIcon}>
-              <Ionicons name="bed-outline" size={18} color={colors.primary} />
+              <Ionicons name="create-outline" size={18} color={colors.primary} />
             </View>
-            <Text style={styles.title}>Ajouter un lieu où j'ai dormi</Text>
+            <Text style={styles.title}>Modifier ce lieu</Text>
           </View>
 
           <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
@@ -88,7 +91,6 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
-              autoFocus
               editable={!loading}
             />
           </View>
@@ -111,7 +113,7 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitText}>Ajouter</Text>
+                <Text style={styles.submitText}>Enregistrer</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -206,7 +208,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingVertical: 12,
     paddingHorizontal: spacing.xl,
-    minWidth: 100,
+    minWidth: 120,
     alignItems: 'center',
     marginLeft: spacing.sm,
     ...shadow.card,

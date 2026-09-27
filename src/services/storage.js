@@ -47,3 +47,29 @@ export async function saveCountryBoundaries(boundaries) {
     console.error('Erreur lors de la sauvegarde des contours de pays :', error);
   }
 }
+
+// Clé utilisée pour retenir quel lieu est le domicile principal
+const HOME_PLACE_STORAGE_KEY = '@travelmap_home_place_id';
+
+// Récupère l'id du lieu marqué comme domicile principal (ou null si aucun)
+export async function getHomePlaceId() {
+  try {
+    return await AsyncStorage.getItem(HOME_PLACE_STORAGE_KEY);
+  } catch (error) {
+    console.error('Erreur lors de la lecture du domicile principal :', error);
+    return null;
+  }
+}
+
+// Sauvegarde l'id du lieu marqué comme domicile principal (ou null pour l'enlever)
+export async function saveHomePlaceId(id) {
+  try {
+    if (id) {
+      await AsyncStorage.setItem(HOME_PLACE_STORAGE_KEY, id);
+    } else {
+      await AsyncStorage.removeItem(HOME_PLACE_STORAGE_KEY);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde du domicile principal :', error);
+  }
+}
