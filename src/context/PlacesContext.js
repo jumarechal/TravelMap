@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getPlaces,
   savePlaces,
@@ -8,7 +8,10 @@ import {
   saveHomePlaceId,
 } from '../services/storage';
 import { fetchCountryBoundary } from '../services/countryBoundaries';
-import { reverseGeocodeCountryCode } from '../services/geocoding';
+import { reverseGeocodePlaceInfo } from '../services/geocoding';
+import { computeCoveragePercent } from '../services/countryCoverage';
+import { getCountryLevel } from '../utils/countryLevel';
+import { COUNTRIES_BY_CODE } from '../data/countries';
 
 // Ce contexte centralise la liste des lieux visités (et le contour des pays
 // correspondants), pour que l'écran Carte et l'écran Liste partagent toujours
@@ -20,6 +23,9 @@ export function PlacesProvider({ children }) {
   const [countryBoundaries, setCountryBoundaries] = useState({});
   const [homePlaceId, setHomePlaceIdState] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Cache par pays des statistiques déjà calculées (évite de recalculer la
+  // couverture d'un pays qui n'a pas changé quand on modifie un autre pays)
+  const countryStatsCacheRef = useRef({});
 
   // Au premier lancement de l'app, on recharge les lieux et contours déjà sauvegardés
   useEffect(() => {
@@ -34,11 +40,11 @@ export function PlacesProvider({ children }) {
       setHomePlaceIdState(storedHomePlaceId);
       setLoading(false);
 
-      // Complète le code pays (ISO) des lieux ajoutés avant l'écran Passeport,
-      // qui n'ont donc pas encore ce champ enregistré
-      const placesMissingCode = storedPlaces.filter((p) => !p.countryCode);
-      if (placesMissingCode.length > 0) {
-        await backfillCountryCodes(placesMissingCode);
+      // Complète le code pays (ISO) et/ou la ville des lieux ajoutés avant
+      // l'introduction de ces champs, qui ne les ont donc pas encore enregistrés
+      const placesMissingInfo = storedPlaces.filter((p) => !p.countryCode || !p.city);
+      if (placesMissingInfo.length > 0) {
+        await backfillPlaceInfo(placesMissingInfo);
       }
 
       // Si des lieux ont été ajoutés sans que leur pays soit encore en cache
@@ -52,15 +58,19 @@ export function PlacesProvider({ children }) {
     })();
   }, []);
 
-  // Retrouve le code pays (ISO) d'anciens lieux qui n'en ont pas encore,
-  // via un reverse-géocodage sur leurs coordonnées, puis sauvegarde le résultat
-  const backfillCountryCodes = async (placesMissingCode) => {
-    for (const place of placesMissingCode) {
-      const countryCode = await reverseGeocodeCountryCode(place.latitude, place.longitude);
-      if (!countryCode) continue;
+  // Retrouve le code pays (ISO) et/ou la ville d'anciens lieux qui n'en ont
+  // pas encore, via un reverse-géocodage sur leurs coordonnées
+  const backfillPlaceInfo = async (placesMissingInfo) => {
+    for (const place of placesMissingInfo) {
+      const info = await reverseGeocodePlaceInfo(place.latitude, place.longitude);
+      if (!info) continue;
 
       setPlaces((current) => {
-        const updated = current.map((p) => (p.id === place.id ? { ...p, countryCode } : p));
+        const updated = current.map((p) =>
+          p.id === place.id
+            ? { ...p, countryCode: p.countryCode || info.countryCode, city: p.city || info.city }
+            : p
+        );
         savePlaces(updated);
         return updated;
       });
@@ -128,11 +138,70 @@ export function PlacesProvider({ children }) {
     await saveHomePlaceId(id);
   };
 
+  // Statistiques et niveau (0 à 5) de chaque pays où l'on a au moins un lieu.
+  // Calculées une seule fois ici (au lieu d'être recalculées indépendamment
+  // par chaque écran), et mises en cache par pays : si les lieux d'un pays
+  // n'ont pas changé depuis le dernier calcul, on réutilise le résultat au
+  // lieu de refaire le calcul de couverture (le plus coûteux).
+  const countryStats = useMemo(() => {
+    const placesByCode = {};
+    places.forEach((place) => {
+      if (!place.countryCode) return;
+      if (!placesByCode[place.countryCode]) placesByCode[place.countryCode] = [];
+      placesByCode[place.countryCode].push(place);
+    });
+
+    const byCode = {};
+    const byName = {};
+    const nextCache = {};
+
+    Object.entries(placesByCode).forEach(([code, countryPlaces]) => {
+      const countryName = countryPlaces[0].country;
+      const cached = countryStatsCacheRef.current[code];
+
+      const unchanged =
+        cached &&
+        cached.places.length === countryPlaces.length &&
+        cached.places.every((p, i) => p === countryPlaces[i]);
+
+      if (unchanged) {
+        nextCache[code] = cached;
+        byCode[code] = cached.entry;
+        byName[countryName] = cached.entry;
+        return;
+      }
+
+      const countryInfo = COUNTRIES_BY_CODE[code];
+      const cityCount = new Set(countryPlaces.map((p) => p.city).filter(Boolean)).size;
+      const coveragePercent = computeCoveragePercent(
+        countryPlaces,
+        countryInfo?.areaKm2,
+        countryInfo?.capital
+      );
+      const entry = {
+        country: countryName,
+        countryCode: code,
+        placesCount: countryPlaces.length,
+        cityCount,
+        coveragePercent,
+        level: getCountryLevel({ placesCount: countryPlaces.length, cityCount, coveragePercent }),
+      };
+
+      nextCache[code] = { places: countryPlaces, entry };
+      byCode[code] = entry;
+      byName[countryName] = entry;
+    });
+
+    countryStatsCacheRef.current = nextCache;
+    return { byCode, byName };
+  }, [places]);
+
   return (
     <PlacesContext.Provider
       value={{
         places,
         countryBoundaries,
+        countryStats,
         homePlaceId,
         loading,
         addPlace,

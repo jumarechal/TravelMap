@@ -3,10 +3,12 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { Marker, Circle, Polygon } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
+import { useCountryStats } from '../hooks/useCountryStats';
 import AddPlaceModal from '../components/AddPlaceModal';
 import CountrySummary from '../components/CountrySummary';
 import { geometryToPolygons } from '../utils/geojson';
-import { colors, shadow } from '../theme/theme';
+import { hexToRgba } from '../utils/color';
+import { colors, shadow, getMapLevelColor } from '../theme/theme';
 
 // Rayon (en mètres) du cercle "zone connue" dessiné autour de chaque lieu
 const KNOWN_ZONE_RADIUS_METERS = 7500;
@@ -23,15 +25,12 @@ const INITIAL_REGION = {
 // (assez large pour bien voir le cercle de 7,5 km autour du point)
 const FOCUS_DELTA = 0.4;
 
-// Couleur pâle et discrète utilisée pour mettre en avant, sur la carte,
-// les pays où l'on a déjà dormi au moins une fois
-const VISITED_COUNTRY_FILL = 'rgba(255, 139, 94, 0.22)';
-const VISITED_COUNTRY_STROKE = 'rgba(233, 111, 63, 0.8)';
 const KNOWN_ZONE_STROKE = 'rgba(76, 95, 224, 0.6)';
 const KNOWN_ZONE_FILL = 'rgba(76, 95, 224, 0.15)';
 
 export default function MapScreen() {
   const { places, countryBoundaries, addPlace } = usePlaces();
+  const { byName: statsByName } = useCountryStats();
   const [modalVisible, setModalVisible] = useState(false);
   const mapRef = useRef(null);
 
@@ -64,14 +63,17 @@ export default function MapScreen() {
           const geometry = countryBoundaries[country];
           if (!geometry) return null;
 
+          const level = statsByName[country]?.level || 1;
+          const baseColor = getMapLevelColor(level);
+
           return geometryToPolygons(geometry).map((polygon, index) => (
             <Polygon
               key={`${country}-${index}`}
               coordinates={polygon.coordinates}
               holes={polygon.holes}
-              fillColor={VISITED_COUNTRY_FILL}
-              strokeColor={VISITED_COUNTRY_STROKE}
-              strokeWidth={1}
+              fillColor={hexToRgba(baseColor, 0.55)}
+              strokeColor={hexToRgba(baseColor, 1)}
+              strokeWidth={1.5}
             />
           ));
         })}

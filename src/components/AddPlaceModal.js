@@ -50,6 +50,7 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
         displayName: geo.displayName,
         country: geo.country,
         countryCode: geo.countryCode,
+        city: geo.city,
         latitude: geo.latitude,
         longitude: geo.longitude,
         // Date au format AAAA-MM-JJ, ou null si non renseignée

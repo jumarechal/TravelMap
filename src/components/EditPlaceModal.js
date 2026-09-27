@@ -54,6 +54,7 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
         displayName: geo.displayName,
         country: geo.country,
         countryCode: geo.countryCode,
+        city: geo.city,
         latitude: geo.latitude,
         longitude: geo.longitude,
         date: date ? date.toISOString().slice(0, 10) : null,
