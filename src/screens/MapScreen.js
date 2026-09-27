@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import MapView, { Marker, Circle } from 'react-native-maps';
+import MapView, { Marker, Circle, Polygon } from 'react-native-maps';
 import { usePlaces } from '../context/PlacesContext';
 import AddPlaceModal from '../components/AddPlaceModal';
+import CountrySummary from '../components/CountrySummary';
+import { geometryToPolygons } from '../utils/geojson';
 
 // Rayon (en mètres) du cercle "zone connue" dessiné autour de chaque lieu
 const KNOWN_ZONE_RADIUS_METERS = 7500;
@@ -15,13 +17,61 @@ const INITIAL_REGION = {
   longitudeDelta: 90,
 };
 
+// Étendue de la carte utilisée quand on zoome sur un lieu nouvellement ajouté
+// (assez large pour bien voir le cercle de 7,5 km autour du point)
+const FOCUS_DELTA = 0.4;
+
+// Couleur pâle et discrète utilisée pour mettre en avant, sur la carte,
+// les pays où l'on a déjà dormi au moins une fois
+const VISITED_COUNTRY_FILL = 'rgba(245, 166, 35, 0.22)';
+const VISITED_COUNTRY_STROKE = 'rgba(245, 166, 35, 0.8)';
+
 export default function MapScreen() {
-  const { places, addPlace } = usePlaces();
+  const { places, countryBoundaries, addPlace } = usePlaces();
   const [modalVisible, setModalVisible] = useState(false);
+  const mapRef = useRef(null);
+
+  // Liste des pays distincts déjà visités (déduite des lieux enregistrés)
+  const visitedCountries = useMemo(
+    () => [...new Set(places.map((p) => p.country).filter(Boolean))],
+    [places]
+  );
+
+  // Ajoute le lieu, puis anime la carte pour se centrer/zoomer dessus
+  const handleAddPlace = async (place) => {
+    await addPlace(place);
+    mapRef.current?.animateToRegion(
+      {
+        latitude: place.latitude,
+        longitude: place.longitude,
+        latitudeDelta: FOCUS_DELTA,
+        longitudeDelta: FOCUS_DELTA,
+      },
+      800
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <MapView style={styles.map} initialRegion={INITIAL_REGION}>
+      <MapView ref={mapRef} style={styles.map} initialRegion={INITIAL_REGION}>
+        {/* Contour pâle des pays déjà visités (dessiné avant les markers,
+            pour qu'il reste bien "sous" les points) */}
+        {visitedCountries.map((country) => {
+          const geometry = countryBoundaries[country];
+          if (!geometry) return null;
+
+          return geometryToPolygons(geometry).map((polygon, index) => (
+            <Polygon
+              key={`${country}-${index}`}
+              coordinates={polygon.coordinates}
+              holes={polygon.holes}
+              fillColor={VISITED_COUNTRY_FILL}
+              strokeColor={VISITED_COUNTRY_STROKE}
+              strokeWidth={1}
+            />
+          ));
+        })}
+
         {places.map((place) => (
           // Un Fragment permet de regrouper le marker et son cercle
           // sans ajouter de vue supplémentaire inutile
@@ -41,6 +91,10 @@ export default function MapScreen() {
         ))}
       </MapView>
 
+      <View style={styles.summaryOverlay}>
+        <CountrySummary />
+      </View>
+
       <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
@@ -48,7 +102,7 @@ export default function MapScreen() {
       <AddPlaceModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onAdd={addPlace}
+        onAdd={handleAddPlace}
       />
     </View>
   );
@@ -57,6 +111,11 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
+  summaryOverlay: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+  },
   addButton: {
     position: 'absolute',
     right: 24,
