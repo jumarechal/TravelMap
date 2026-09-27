@@ -9,6 +9,7 @@ import {
 } from '../services/storage';
 import { fetchCountryBoundary } from '../services/countryBoundaries';
 import { reverseGeocodePlaceInfo } from '../services/geocoding';
+import { deleteStoredPhoto } from '../services/photoStorage';
 import { computeCoveragePercent } from '../services/countryCoverage';
 import { getCountryLevel } from '../utils/countryLevel';
 import { COUNTRIES_BY_CODE } from '../data/countries';
@@ -120,9 +121,16 @@ export function PlacesProvider({ children }) {
 
   // Supprime un lieu (par son id) et sauvegarde le résultat
   const removePlace = async (id) => {
+    const placeToRemove = places.find((p) => p.id === id);
     const updated = places.filter((p) => p.id !== id);
     setPlaces(updated);
     await savePlaces(updated);
+
+    // Supprime aussi les photos de ce lieu, pour ne pas laisser de fichiers
+    // orphelins dans le stockage de l'app
+    if (placeToRemove?.photos?.length) {
+      await Promise.all(placeToRemove.photos.map((uri) => deleteStoredPhoto(uri)));
+    }
 
     // Si le lieu supprimé était le domicile principal, on l'oublie aussi
     if (id === homePlaceId) {
