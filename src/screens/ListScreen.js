@@ -1,14 +1,18 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TextInput, SectionList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
 import CountrySummary from '../components/CountrySummary';
+import EditPlaceModal from '../components/EditPlaceModal';
 import { COUNTRIES } from '../data/countries';
+import { normalize } from '../utils/text';
 import { colors, radius, spacing, shadow } from '../theme/theme';
 
 export default function ListScreen({ route }) {
-  const { places, removePlace, loading } = usePlaces();
+  const { places, homePlaceId, updatePlace, removePlace, setHomePlace, loading } = usePlaces();
   const sectionListRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingPlace, setEditingPlace] = useState(null);
 
   // Demande une confirmation avant de supprimer un lieu (pour éviter les erreurs de clic)
   const confirmDelete = (place) => {
@@ -20,9 +24,19 @@ export default function ListScreen({ route }) {
 
   // Regroupe les lieux par pays : une section = une bannière de pays
   const sections = useMemo(() => {
+    const query = normalize(searchQuery.trim());
+
+    const filteredPlaces = query
+      ? places.filter(
+          (place) =>
+            normalize(place.name).includes(query) ||
+            normalize(place.country || '').includes(query)
+        )
+      : places;
+
     const groups = {};
 
-    places.forEach((place) => {
+    filteredPlaces.forEach((place) => {
       const key = place.countryCode || place.country || 'inconnu';
       if (!groups[key]) {
         const countryInfo = COUNTRIES.find((c) => c.code === place.countryCode);
@@ -38,7 +52,7 @@ export default function ListScreen({ route }) {
     });
 
     return Object.values(groups).sort((a, b) => a.title.localeCompare(b.title));
-  }, [places]);
+  }, [places, searchQuery]);
 
   // Si on arrive depuis l'écran Passeport pour un pays précis, on scrolle
   // automatiquement jusqu'à la bannière de ce pays
@@ -83,45 +97,99 @@ export default function ListScreen({ route }) {
   }
 
   return (
-    <SectionList
-      ref={sectionListRef}
-      sections={sections}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
-      stickySectionHeadersEnabled={false}
-      onScrollToIndexFailed={() => {}}
-      ListHeaderComponent={
-        <View style={styles.summaryContainer}>
-          <CountrySummary />
-        </View>
-      }
-      renderSectionHeader={({ section }) => (
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionFlagBadge}>
-            <Text style={styles.sectionFlag}>{section.flag}</Text>
+    <>
+      <SectionList
+        ref={sectionListRef}
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        stickySectionHeadersEnabled={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollToIndexFailed={() => {}}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.summaryContainer}>
+              <CountrySummary />
+            </View>
+
+            <View style={styles.searchWrapper}>
+              <Ionicons name="search" size={18} color={colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher un lieu ou un pays"
+                placeholderTextColor={colors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {sections.length === 0 && (
+              <Text style={styles.noResults}>Aucun résultat pour "{searchQuery}"</Text>
+            )}
           </View>
-          <Text style={styles.sectionTitle} numberOfLines={1}>
-            {section.title}
-          </Text>
-          <View style={styles.sectionCountPill}>
-            <Text style={styles.sectionCount}>{section.data.length}</Text>
+        }
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionFlagBadge}>
+              <Text style={styles.sectionFlag}>{section.flag}</Text>
+            </View>
+            <Text style={styles.sectionTitle} numberOfLines={1}>
+              {section.title}
+            </Text>
+            <View style={styles.sectionCountPill}>
+              <Text style={styles.sectionCount}>{section.data.length}</Text>
+            </View>
           </View>
-        </View>
-      )}
-      renderItem={({ item }) => (
-        <View style={styles.row}>
-          <View style={styles.rowIcon}>
-            <Ionicons name="bed-outline" size={18} color={colors.primary} />
-          </View>
-          <View style={styles.rowText}>
-            <Text style={styles.name}>{item.name}</Text>
-          </View>
-          <TouchableOpacity onPress={() => confirmDelete(item)} style={styles.deleteButton}>
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-          </TouchableOpacity>
-        </View>
-      )}
-    />
+        )}
+        renderItem={({ item }) => {
+          const isHome = item.id === homePlaceId;
+
+          return (
+            <View style={[styles.row, isHome && styles.rowHome]}>
+              <View style={[styles.rowIcon, isHome && styles.rowIconHome]}>
+                <Ionicons
+                  name={isHome ? 'home' : 'bed-outline'}
+                  size={18}
+                  color={isHome ? colors.accentDark : colors.primary}
+                />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[styles.name, isHome && styles.nameHome]}>{item.name}</Text>
+                {isHome && <Text style={styles.homeLabel}>Domicile principal</Text>}
+              </View>
+              <TouchableOpacity
+                onPress={() => setHomePlace(isHome ? null : item.id)}
+                style={styles.homeButton}
+              >
+                <Ionicons
+                  name={isHome ? 'home' : 'home-outline'}
+                  size={18}
+                  color={isHome ? colors.accent : colors.textMuted}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setEditingPlace(item)} style={styles.editButton}>
+                <Ionicons name="create-outline" size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => confirmDelete(item)} style={styles.deleteButton}>
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
+          );
+        }}
+      />
+
+      <EditPlaceModal
+        visible={Boolean(editingPlace)}
+        place={editingPlace}
+        onClose={() => setEditingPlace(null)}
+        onSave={updatePlace}
+      />
+    </>
   );
 }
 
@@ -140,6 +208,23 @@ const styles = StyleSheet.create({
   emptyHint: { color: colors.textMuted, fontSize: 13, marginTop: 6, textAlign: 'center' },
   list: { padding: spacing.lg, backgroundColor: colors.background },
   summaryContainer: { marginBottom: spacing.md, alignItems: 'flex-start' },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    ...shadow.card,
+  },
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 15, color: colors.text },
+  noResults: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: spacing.lg,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -174,6 +259,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     ...shadow.card,
   },
+  rowHome: {
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
   rowIcon: {
     width: 36,
     height: 36,
@@ -183,8 +273,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.md,
   },
+  rowIconHome: {
+    backgroundColor: '#fff',
+  },
   rowText: { flex: 1, marginRight: spacing.sm },
   name: { fontSize: 15, fontWeight: '600', color: colors.text },
+  nameHome: { fontWeight: '800', color: colors.accentDark },
+  homeLabel: { fontSize: 11, fontWeight: '700', color: colors.accentDark, marginTop: 2 },
+  homeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  editButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
   deleteButton: {
     width: 34,
     height: 34,

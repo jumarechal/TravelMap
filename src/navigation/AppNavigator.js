@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MapScreen from '../screens/MapScreen';
 import ListScreen from '../screens/ListScreen';
 import PassportScreen from '../screens/PassportScreen';
+import TimelineScreen from '../screens/TimelineScreen';
 import { colors } from '../theme/theme';
 
 const Tab = createBottomTabNavigator();
@@ -13,6 +14,7 @@ const Tab = createBottomTabNavigator();
 const TAB_ICONS = {
   Carte: { active: 'map', inactive: 'map-outline' },
   'Mes lieux': { active: 'bookmark', inactive: 'bookmark-outline' },
+  Chronologie: { active: 'time', inactive: 'time-outline' },
   Passeport: { active: 'book', inactive: 'book-outline' },
 };
 
@@ -42,6 +44,7 @@ export default function AppNavigator() {
       >
         <Tab.Screen name="Carte" component={MapScreen} />
         <Tab.Screen name="Mes lieux" component={ListScreen} />
+        <Tab.Screen name="Chronologie" component={TimelineScreen} />
         <Tab.Screen name="Passeport" component={PassportScreen} />
       </Tab.Navigator>
     </NavigationContainer>
