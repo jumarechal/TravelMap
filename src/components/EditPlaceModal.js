@@ -3,7 +3,6 @@ import {
   Modal,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress } from '../services/geocoding';
 import { storePhoto, isStoredPhoto, deleteStoredPhoto } from '../services/photoStorage';
 import { colors, radius, spacing, shadow } from '../theme/theme';
+import AddressAutocomplete from './AddressAutocomplete';
 import DateField from './DateField';
 import NoteField from './NoteField';
 import PhotoPicker from './PhotoPicker';
@@ -23,6 +23,9 @@ import PhotoPicker from './PhotoPicker';
 // (re-géocodée, au cas où elle change), sa date, sa note et ses photos.
 export default function EditPlaceModal({ visible, place, onClose, onSave }) {
   const [query, setQuery] = useState('');
+  // Lieu choisi dans les suggestions d'autocomplétion (évite de re-géocoder
+  // le texte et lève l'ambiguïté entre deux lieux du même nom)
+  const [selectedGeo, setSelectedGeo] = useState(null);
   const [date, setDate] = useState(null);
   const [note, setNote] = useState('');
   const [photos, setPhotos] = useState([]);
@@ -33,6 +36,7 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
   useEffect(() => {
     if (place) {
       setQuery(place.name);
+      setSelectedGeo(null);
       setDate(place.date ? new Date(place.date) : null);
       setNote(place.note || '');
       setPhotos(place.photos || []);
@@ -55,7 +59,7 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
     setError(null);
 
     try {
-      const geo = await geocodeAddress(query.trim());
+      const geo = selectedGeo || (await geocodeAddress(query.trim()));
 
       // Copie les photos nouvellement ajoutées dans le stockage de l'app
       // (celles déjà stockées le sont déjà, on ne les retouche pas)
@@ -104,17 +108,20 @@ export default function EditPlaceModal({ visible, place, onClose, onSave }) {
             <Text style={styles.title}>Modifier ce lieu</Text>
           </View>
 
-          <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
-            <Ionicons name="location-outline" size={18} color={colors.textMuted} />
-            <TextInput
-              style={styles.input}
-              placeholder="Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris"
-              placeholderTextColor={colors.textMuted}
-              value={query}
-              onChangeText={setQuery}
-              editable={!loading}
-            />
-          </View>
+          <AddressAutocomplete
+            value={query}
+            onChangeText={(text) => {
+              setQuery(text);
+              setSelectedGeo(null);
+            }}
+            onSelectSuggestion={(suggestion) => {
+              setQuery(suggestion.label);
+              setSelectedGeo(suggestion);
+            }}
+            placeholder="Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris"
+            editable={!loading}
+            error={error}
+          />
 
           <ScrollView style={styles.scrollArea} keyboardShouldPersistTaps="handled">
             <DateField value={date} onChange={setDate} />
@@ -194,27 +201,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  inputWrapperError: {
-    borderColor: colors.danger,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
-  },
   scrollArea: {
     maxHeight: 280,
+    marginTop: spacing.md,
   },
   fieldSpacer: {
     marginTop: spacing.md,

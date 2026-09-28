@@ -3,7 +3,6 @@ import {
   Modal,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { geocodeAddress } from '../services/geocoding';
 import { storePhoto } from '../services/photoStorage';
 import { colors, radius, spacing, shadow } from '../theme/theme';
+import AddressAutocomplete from './AddressAutocomplete';
 import DateField from './DateField';
 import NoteField from './NoteField';
 import PhotoPicker from './PhotoPicker';
@@ -23,6 +23,9 @@ import PhotoPicker from './PhotoPicker';
 // Elle permet de saisir une adresse, de la géocoder, puis d'ajouter le lieu.
 export default function AddPlaceModal({ visible, onClose, onAdd }) {
   const [query, setQuery] = useState('');
+  // Lieu choisi dans les suggestions d'autocomplétion (évite de re-géocoder
+  // le texte et lève l'ambiguïté entre deux lieux du même nom)
+  const [selectedGeo, setSelectedGeo] = useState(null);
   const [date, setDate] = useState(null);
   const [note, setNote] = useState('');
   const [photos, setPhotos] = useState([]);
@@ -31,6 +34,7 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
 
   const handleClose = () => {
     setQuery('');
+    setSelectedGeo(null);
     setDate(null);
     setNote('');
     setPhotos([]);
@@ -48,8 +52,9 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
     setError(null);
 
     try {
-      // 1. On demande à Nominatim de transformer le texte en coordonnées GPS
-      const geo = await geocodeAddress(query.trim());
+      // 1. Coordonnées GPS : celles de la suggestion choisie si l'utilisateur
+      // en a sélectionné une, sinon on géocode le texte saisi
+      const geo = selectedGeo || (await geocodeAddress(query.trim()));
 
       // 2. On copie les photos choisies dans le stockage propre à l'app
       const storedPhotos = await Promise.all(photos.map((uri) => storePhoto(uri)));
@@ -94,18 +99,21 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
             <Text style={styles.title}>Ajouter un lieu où j'ai dormi</Text>
           </View>
 
-          <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
-            <Ionicons name="location-outline" size={18} color={colors.textMuted} />
-            <TextInput
-              style={styles.input}
-              placeholder="Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris"
-              placeholderTextColor={colors.textMuted}
-              value={query}
-              onChangeText={setQuery}
-              autoFocus
-              editable={!loading}
-            />
-          </View>
+          <AddressAutocomplete
+            value={query}
+            onChangeText={(text) => {
+              setQuery(text);
+              setSelectedGeo(null);
+            }}
+            onSelectSuggestion={(suggestion) => {
+              setQuery(suggestion.label);
+              setSelectedGeo(suggestion);
+            }}
+            placeholder="Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris"
+            autoFocus
+            editable={!loading}
+            error={error}
+          />
 
           <ScrollView style={styles.scrollArea} keyboardShouldPersistTaps="handled">
             <DateField value={date} onChange={setDate} />
@@ -185,30 +193,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  inputWrapperError: {
-    borderColor: colors.danger,
-  },
   scrollArea: {
     maxHeight: 280,
+    marginTop: spacing.md,
   },
   fieldSpacer: {
     marginTop: spacing.md,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
   },
   error: {
     color: colors.danger,

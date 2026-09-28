@@ -12,6 +12,58 @@ function extractCity(address) {
   return address.city || address.town || address.village || address.municipality || address.county || null;
 }
 
+// Construit un libellé lisible pour une suggestion, du type
+// "Antibes, Alpes-Maritimes, France" — pensé pour distinguer deux lieux
+// qui portent le même nom mais se trouvent dans des régions différentes.
+function buildSuggestionLabel(address, city, displayName) {
+  const primary = city || displayName.split(',')[0].trim();
+  const secondary = [address.state, address.country]
+    .filter(Boolean)
+    .filter((part) => part !== primary);
+  return secondary.length ? `${primary}, ${secondary.join(', ')}` : primary;
+}
+
+// Recherche des suggestions d'adresses au fil de la saisie (autocomplétion).
+// Renvoie une liste (potentiellement vide) plutôt que de lever une erreur,
+// pour ne pas gêner la saisie en cas de souci réseau ponctuel.
+export async function searchAddressSuggestions(query) {
+  if (!query || query.trim().length < 3) return [];
+
+  const url = `${NOMINATIM_URL}?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query.trim())}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'TravelMapApp/1.0',
+        'Accept-Language': 'fr',
+      },
+    });
+
+    if (!response.ok) return [];
+
+    const results = await response.json();
+
+    return results.map((result) => {
+      const address = result.address || {};
+      const city = extractCity(address);
+
+      return {
+        id: String(result.place_id),
+        label: buildSuggestionLabel(address, city, result.display_name),
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon),
+        displayName: result.display_name,
+        country: address.country || 'Pays inconnu',
+        countryCode: address.country_code ? address.country_code.toUpperCase() : null,
+        city,
+      };
+    });
+  } catch (error) {
+    console.error('Erreur lors de la recherche de suggestions :', error);
+    return [];
+  }
+}
+
 // Convertit une adresse texte en { latitude, longitude, displayName, country, city }
 // Lève une erreur (avec un message lisible) si l'adresse n'est pas trouvée.
 export async function geocodeAddress(query) {
