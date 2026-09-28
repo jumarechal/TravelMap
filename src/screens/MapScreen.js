@@ -25,8 +25,9 @@ const INITIAL_REGION = {
 // (assez large pour bien voir le cercle de 7,5 km autour du point)
 const FOCUS_DELTA = 0.4;
 
-const KNOWN_ZONE_STROKE = 'rgba(76, 95, 224, 0.6)';
-const KNOWN_ZONE_FILL = 'rgba(76, 95, 224, 0.15)';
+const KNOWN_ZONE_STROKE = hexToRgba(colors.accent, 0.7);
+const KNOWN_ZONE_FILL = hexToRgba(colors.accent, 0.12);
+const KNOWN_ZONE_DASH = [8, 6];
 
 export default function MapScreen() {
   const { places, countryBoundaries, addPlace } = usePlaces();
@@ -86,12 +87,14 @@ export default function MapScreen() {
               coordinate={{ latitude: place.latitude, longitude: place.longitude }}
               title={place.name}
               description={place.country}
+              pinColor={colors.primary}
             />
             <Circle
               center={{ latitude: place.latitude, longitude: place.longitude }}
               radius={KNOWN_ZONE_RADIUS_METERS}
               strokeColor={KNOWN_ZONE_STROKE}
               fillColor={KNOWN_ZONE_FILL}
+              lineDashPattern={KNOWN_ZONE_DASH}
             />
           </React.Fragment>
         ))}

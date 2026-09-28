@@ -3,29 +3,29 @@
 // pour garder un look cohérent partout et pouvoir tout ajuster en un endroit.
 
 export const colors = {
-  // Couleur principale : les lieux exacts où l'on a dormi (marker, cercle, liens)
-  primary: '#4C5FE0',
-  primaryDark: '#3646B8',
-  primarySoft: '#E8EAFC',
+  // Bleu marine foncé : couleur principale (boutons, éléments importants, pin sur la carte)
+  primary: '#1D3557',
+  primaryDark: '#14263F',
+  primarySoft: '#DCE3EC',
 
-  // Couleur d'accent : tout ce qui représente un pays "débloqué"
-  accent: '#FF8B5E',
-  accentDark: '#E96F3F',
-  accentSoft: '#FFEADE',
+  // Corail : accent secondaire (lieux, zone de connaissance, pays débloqués)
+  accent: '#EF7860',
+  accentDark: '#D65D45',
+  accentSoft: '#FBDCD3',
 
-  background: '#F6F7FB',
+  background: '#EEF1F7',
   surface: '#FFFFFF',
-  border: '#E7E9F2',
+  border: '#DDE1EC',
 
-  text: '#1D2030',
-  textMuted: '#7A7F92',
+  text: '#14213D',
+  textMuted: '#5B6787',
 
   danger: '#F14C4C',
   dangerSoft: '#FDEBEB',
 
-  locked: '#EEF0F5',
-  lockedBorder: '#E1E4EC',
-  lockedText: '#B7BBC8',
+  locked: '#EAEDF3',
+  lockedBorder: '#DBDFE9',
+  lockedText: '#9AA1B8',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
