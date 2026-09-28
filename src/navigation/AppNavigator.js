@@ -8,6 +8,7 @@ import ListScreen from '../screens/ListScreen';
 import PassportScreen from '../screens/PassportScreen';
 import TimelineScreen from '../screens/TimelineScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import TripPlannerScreen from '../screens/TripPlannerScreen';
 import { colors } from '../theme/theme';
 
 const Tab = createBottomTabNavigator();
@@ -17,11 +18,12 @@ const Stack = createNativeStackNavigator();
 const TAB_ICONS = {
   Carte: { active: 'map', inactive: 'map-outline' },
   'Mes lieux': { active: 'bookmark', inactive: 'bookmark-outline' },
-  Chronologie: { active: 'time', inactive: 'time-outline' },
   Passeport: { active: 'book', inactive: 'book-outline' },
 };
 
 // Navigation par onglets en bas d'écran : Carte <-> Mes lieux <-> Passeport
+// (Chronologie et Planifier mon voyage sont accessibles depuis le panel
+// "Mes voyages", pas depuis la barre d'onglets)
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -46,7 +48,6 @@ function MainTabs() {
     >
       <Tab.Screen name="Carte" component={MapScreen} />
       <Tab.Screen name="Mes lieux" component={ListScreen} />
-      <Tab.Screen name="Chronologie" component={TimelineScreen} />
       <Tab.Screen name="Passeport" component={PassportScreen} />
     </Tab.Navigator>
   );
@@ -59,6 +60,30 @@ export default function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Main" component={MainTabs} />
+        <Stack.Screen
+          name="TripPlanner"
+          component={TripPlannerScreen}
+          options={{
+            headerShown: true,
+            title: 'Planifier mon voyage',
+            headerStyle: { backgroundColor: colors.background },
+            headerShadowVisible: false,
+            headerTintColor: colors.text,
+            headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 17 },
+          }}
+        />
+        <Stack.Screen
+          name="Timeline"
+          component={TimelineScreen}
+          options={{
+            headerShown: true,
+            title: 'Chronologie',
+            headerStyle: { backgroundColor: colors.background },
+            headerShadowVisible: false,
+            headerTintColor: colors.text,
+            headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 17 },
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

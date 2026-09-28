@@ -1,14 +1,15 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { Marker, Circle, Polygon } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
 import { useCountryStats } from '../hooks/useCountryStats';
 import AddPlaceModal from '../components/AddPlaceModal';
 import CountrySummary from '../components/CountrySummary';
+import SidePanel from '../components/SidePanel';
 import { geometryToPolygons } from '../utils/geojson';
 import { hexToRgba } from '../utils/color';
-import { colors, shadow, getMapLevelColor } from '../theme/theme';
+import { colors, radius, spacing, shadow, getMapLevelColor } from '../theme/theme';
 
 // Rayon (en mètres) du cercle "zone connue" dessiné autour de chaque lieu
 const KNOWN_ZONE_RADIUS_METERS = 7500;
@@ -29,10 +30,11 @@ const KNOWN_ZONE_STROKE = hexToRgba(colors.accent, 0.7);
 const KNOWN_ZONE_FILL = hexToRgba(colors.accent, 0.12);
 const KNOWN_ZONE_DASH = [8, 6];
 
-export default function MapScreen() {
+export default function MapScreen({ navigation }) {
   const { places, countryBoundaries, addPlace } = usePlaces();
   const { byName: statsByName } = useCountryStats();
   const [modalVisible, setModalVisible] = useState(false);
+  const [panelVisible, setPanelVisible] = useState(false);
   const mapRef = useRef(null);
 
   // Liste des pays distincts déjà visités (déduite des lieux enregistrés)
@@ -105,6 +107,14 @@ export default function MapScreen() {
       </View>
 
       <TouchableOpacity
+        style={styles.menuButton}
+        onPress={() => setPanelVisible(true)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="menu-outline" size={24} color={colors.text} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={styles.addButton}
         onPress={() => setModalVisible(true)}
         activeOpacity={0.85}
@@ -117,7 +127,52 @@ export default function MapScreen() {
         onClose={() => setModalVisible(false)}
         onAdd={handleAddPlace}
       />
+
+      <SidePanel visible={panelVisible} onClose={() => setPanelVisible(false)}>
+        <View style={styles.panelHeader}>
+          <Text style={styles.panelTitle}>Menu</Text>
+          <TouchableOpacity onPress={() => setPanelVisible(false)} hitSlop={8}>
+            <Ionicons name="close" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.panelSectionTitle}>Mes voyages</Text>
+
+        <PanelItem
+          icon="time-outline"
+          title="Chronologie"
+          subtitle="La frise de tous tes voyages, année par année"
+          onPress={() => {
+            setPanelVisible(false);
+            navigation.navigate('Timeline');
+          }}
+        />
+        <PanelItem
+          icon="airplane-outline"
+          title="Planifier mon voyage"
+          subtitle="Des idées de destinations selon tes voyages passés"
+          onPress={() => {
+            setPanelVisible(false);
+            navigation.navigate('TripPlanner');
+          }}
+        />
+      </SidePanel>
     </View>
+  );
+}
+
+function PanelItem({ icon, title, subtitle, onPress }) {
+  return (
+    <TouchableOpacity style={styles.panelItem} activeOpacity={0.7} onPress={onPress}>
+      <View style={styles.panelItemIcon}>
+        <Ionicons name={icon} size={20} color={colors.primary} />
+      </View>
+      <View style={styles.panelItemText}>
+        <Text style={styles.panelItemTitle}>{title}</Text>
+        <Text style={styles.panelItemSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+    </TouchableOpacity>
   );
 }
 
@@ -127,7 +182,7 @@ const styles = StyleSheet.create({
   summaryOverlay: {
     position: 'absolute',
     top: 16,
-    left: 16,
+    right: 16,
   },
   addButton: {
     position: 'absolute',
@@ -140,5 +195,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.floating,
+  },
+  menuButton: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.card,
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.primary,
+  },
+  panelTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  panelSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  panelItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    gap: spacing.md,
+    ...shadow.card,
+  },
+  panelItemIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  panelItemText: { flex: 1 },
+  panelItemTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  panelItemSubtitle: {
+    fontSize: 12,
+    color: colors.textMuted,
   },
 });
