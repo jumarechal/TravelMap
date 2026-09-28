@@ -18,16 +18,35 @@ export function isStoredPhoto(uri) {
   return typeof uri === 'string' && uri.startsWith(PHOTOS_DIR.uri);
 }
 
+// Génère un nom de fichier unique dans le dossier des photos, en conservant
+// l'extension d'origine (utile pour distinguer les formats, même si elle
+// n'est pas strictement nécessaire au fonctionnement de l'app)
+function uniquePhotoFilename(nameOrUri) {
+  const extension = nameOrUri.split('.').pop().split('?')[0] || 'jpg';
+  return `${Date.now()}-${Math.round(Math.random() * 1e6)}.${extension}`;
+}
+
 // Copie une photo choisie (galerie ou appareil photo) dans le stockage de
 // l'app, et renvoie son nouveau chemin permanent
 export async function storePhoto(sourceUri) {
   ensurePhotosDir();
-  const extension = sourceUri.split('.').pop().split('?')[0] || 'jpg';
-  const filename = `${Date.now()}-${Math.round(Math.random() * 1e6)}.${extension}`;
+  const filename = uniquePhotoFilename(sourceUri);
 
   const sourceFile = new File(sourceUri);
   const destFile = new File(PHOTOS_DIR, filename);
   await sourceFile.copy(destFile);
+  return destFile.uri;
+}
+
+// Écrit directement des octets (ex: extraits d'une sauvegarde importée)
+// comme nouvelle photo dans le stockage de l'app, et renvoie son chemin
+export async function storePhotoBytes(originalFilename, bytes) {
+  ensurePhotosDir();
+  const filename = uniquePhotoFilename(originalFilename);
+
+  const destFile = new File(PHOTOS_DIR, filename);
+  destFile.create();
+  destFile.write(bytes);
   return destFile.uri;
 }
 
