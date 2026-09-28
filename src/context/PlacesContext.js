@@ -146,6 +146,23 @@ export function PlacesProvider({ children }) {
     await saveHomePlaceId(id);
   };
 
+  // Remplace intégralement les lieux et le domicile principal par ceux d'une
+  // sauvegarde restaurée. Invalide le cache de statistiques (tout a changé
+  // d'un coup) et va chercher le contour des pays qui ne seraient pas déjà
+  // en cache.
+  const replaceAllData = async ({ places: newPlaces, homePlaceId: newHomePlaceId }) => {
+    setPlaces(newPlaces);
+    await savePlaces(newPlaces);
+    setHomePlaceIdState(newHomePlaceId || null);
+    await saveHomePlaceId(newHomePlaceId || null);
+    countryStatsCacheRef.current = {};
+
+    const countries = [...new Set(newPlaces.map((p) => p.country).filter(Boolean))];
+    for (const country of countries) {
+      await ensureCountryBoundary(country);
+    }
+  };
+
   // Statistiques et niveau (0 à 5) de chaque pays où l'on a au moins un lieu.
   // Calculées une seule fois ici (au lieu d'être recalculées indépendamment
   // par chaque écran), et mises en cache par pays : si les lieux d'un pays
@@ -216,6 +233,7 @@ export function PlacesProvider({ children }) {
         updatePlace,
         removePlace,
         setHomePlace,
+        replaceAllData,
       }}
     >
       {children}

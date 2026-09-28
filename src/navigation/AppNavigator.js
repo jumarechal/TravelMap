@@ -9,7 +9,21 @@ import PassportScreen from '../screens/PassportScreen';
 import TimelineScreen from '../screens/TimelineScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import TripPlannerScreen from '../screens/TripPlannerScreen';
+import BackupRestoreScreen from '../screens/BackupRestoreScreen';
 import { colors } from '../theme/theme';
+
+// Style d'en-tête commun aux écrans "secondaires" ouverts depuis le panel
+// (pas d'onglet dédié, juste un bouton retour standard)
+function panelScreenOptions(title) {
+  return {
+    headerShown: true,
+    title,
+    headerStyle: { backgroundColor: colors.background },
+    headerShadowVisible: false,
+    headerTintColor: colors.text,
+    headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 17 },
+  };
+}
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -63,26 +77,17 @@ export default function AppNavigator() {
         <Stack.Screen
           name="TripPlanner"
           component={TripPlannerScreen}
-          options={{
-            headerShown: true,
-            title: 'Planifier mon voyage',
-            headerStyle: { backgroundColor: colors.background },
-            headerShadowVisible: false,
-            headerTintColor: colors.text,
-            headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 17 },
-          }}
+          options={panelScreenOptions('Planifier mon voyage')}
         />
         <Stack.Screen
           name="Timeline"
           component={TimelineScreen}
-          options={{
-            headerShown: true,
-            title: 'Chronologie',
-            headerStyle: { backgroundColor: colors.background },
-            headerShadowVisible: false,
-            headerTintColor: colors.text,
-            headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 17 },
-          }}
+          options={panelScreenOptions('Chronologie')}
+        />
+        <Stack.Screen
+          name="BackupRestore"
+          component={BackupRestoreScreen}
+          options={panelScreenOptions('Backup / Restore')}
         />
       </Stack.Navigator>
     </NavigationContainer>

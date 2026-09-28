@@ -156,6 +156,18 @@ export default function MapScreen({ navigation }) {
             navigation.navigate('TripPlanner');
           }}
         />
+
+        <Text style={styles.panelSectionTitle}>Données</Text>
+
+        <PanelItem
+          icon="cloud-outline"
+          title="Backup / Restore"
+          subtitle="Sauvegarde ou restaure tes lieux et photos"
+          onPress={() => {
+            setPanelVisible(false);
+            navigation.navigate('BackupRestore');
+          }}
+        />
       </SidePanel>
     </View>
   );
