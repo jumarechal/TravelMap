@@ -168,6 +168,18 @@ export default function MapScreen({ navigation }) {
             navigation.navigate('BackupRestore');
           }}
         />
+
+        <Text style={styles.panelSectionTitle}>À propos</Text>
+
+        <PanelItem
+          icon="document-text-outline"
+          title="Conditions d'utilisation"
+          subtitle="Comment tes données sont gérées, et comment fonctionne l'app"
+          onPress={() => {
+            setPanelVisible(false);
+            navigation.navigate('Terms');
+          }}
+        />
       </SidePanel>
     </View>
   );
