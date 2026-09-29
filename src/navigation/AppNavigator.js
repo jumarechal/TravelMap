@@ -10,6 +10,7 @@ import TimelineScreen from '../screens/TimelineScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import TripPlannerScreen from '../screens/TripPlannerScreen';
 import BackupRestoreScreen from '../screens/BackupRestoreScreen';
+import TermsScreen from '../screens/TermsScreen';
 import { colors } from '../theme/theme';
 
 // Style d'en-tête commun aux écrans "secondaires" ouverts depuis le panel
@@ -88,6 +89,11 @@ export default function AppNavigator() {
           name="BackupRestore"
           component={BackupRestoreScreen}
           options={panelScreenOptions('Backup / Restore')}
+        />
+        <Stack.Screen
+          name="Terms"
+          component={TermsScreen}
+          options={panelScreenOptions("Conditions d'utilisation")}
         />
       </Stack.Navigator>
     </NavigationContainer>
