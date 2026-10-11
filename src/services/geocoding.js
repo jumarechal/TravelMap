@@ -12,6 +12,24 @@ function extractCity(address) {
   return address.city || address.town || address.village || address.municipality || address.county || null;
 }
 
+// Construit le résultat normalisé { latitude, longitude, displayName,
+// country, countryCode, city } à partir d'une réponse Nominatim (search ou
+// reverse ont le même format d'adresse)
+function buildGeoResult(result) {
+  const address = result.address || {};
+  return {
+    latitude: parseFloat(result.lat),
+    longitude: parseFloat(result.lon),
+    displayName: result.display_name,
+    country: address.country || 'Pays inconnu',
+    // Code ISO du pays (ex: "FR"), utilisé pour l'écran Passeport
+    countryCode: address.country_code ? address.country_code.toUpperCase() : null,
+    // Ville (ou équivalent), utilisée pour distinguer les niveaux de
+    // connaissance d'un pays sur le Passeport
+    city: extractCity(address),
+  };
+}
+
 // Construit un libellé lisible pour une suggestion, du type
 // "Antibes, Alpes-Maritimes, France" — pensé pour distinguer deux lieux
 // qui portent le même nom mais se trouvent dans des régions différentes.
@@ -88,48 +106,44 @@ export async function geocodeAddress(query) {
     throw new Error('Aucun résultat trouvé pour cette adresse. Essaie d\'être plus précis.');
   }
 
-  const result = results[0];
+  return buildGeoResult(results[0]);
+}
 
-  return {
-    latitude: parseFloat(result.lat),
-    longitude: parseFloat(result.lon),
-    displayName: result.display_name,
-    country: result.address?.country || 'Pays inconnu',
-    // Code ISO du pays (ex: "FR"), utilisé pour l'écran Passeport
-    countryCode: result.address?.country_code
-      ? result.address.country_code.toUpperCase()
-      : null,
-    // Ville (ou équivalent), utilisée pour distinguer les niveaux de
-    // connaissance d'un pays sur le Passeport
-    city: extractCity(result.address),
-  };
+// Convertit des coordonnées GPS en adresse (l'inverse de geocodeAddress) :
+// utilisé quand on crée un lieu directement depuis un point sur la carte
+// (appui long), où l'on a déjà les coordonnées mais pas encore l'adresse.
+// Lève une erreur (avec un message lisible) si rien n'est trouvé à cet endroit.
+export async function reverseGeocode(latitude, longitude) {
+  const url = `${NOMINATIM_REVERSE_URL}?format=json&addressdetails=1&lat=${latitude}&lon=${longitude}`;
+
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'TravelMapApp/1.0',
+      'Accept-Language': 'fr',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erreur réseau pendant la recherche de l'adresse.");
+  }
+
+  const result = await response.json();
+
+  if (!result || result.error || !result.address) {
+    throw new Error('Impossible de retrouver une adresse à cet endroit.');
+  }
+
+  return buildGeoResult(result);
 }
 
 // Retrouve le code pays (ISO) et la ville à partir de coordonnées GPS.
 // Utilisé pour compléter les lieux enregistrés avant l'ajout de ces champs,
-// qui ne les ont donc pas encore sauvegardés.
+// qui ne les ont donc pas encore sauvegardés. Ne lève jamais d'erreur (renvoie
+// null en cas de souci), pour ne pas bloquer le chargement de l'app.
 export async function reverseGeocodePlaceInfo(latitude, longitude) {
-  const url = `${NOMINATIM_REVERSE_URL}?format=json&lat=${latitude}&lon=${longitude}`;
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'TravelMapApp/1.0',
-        'Accept-Language': 'fr',
-      },
-    });
-
-    if (!response.ok) return null;
-
-    const result = await response.json();
-    if (!result?.address) return null;
-
-    return {
-      countryCode: result.address.country_code
-        ? result.address.country_code.toUpperCase()
-        : null,
-      city: extractCity(result.address),
-    };
+    const geo = await reverseGeocode(latitude, longitude);
+    return { countryCode: geo.countryCode, city: geo.city };
   } catch (error) {
     console.error('Erreur lors de la récupération des informations du lieu :', error);
     return null;

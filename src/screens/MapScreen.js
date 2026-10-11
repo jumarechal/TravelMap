@@ -1,10 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import MapView, { Marker, Circle, Polygon } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
 import { useCountryStats } from '../hooks/useCountryStats';
 import AddPlaceModal from '../components/AddPlaceModal';
+import EditPlaceModal from '../components/EditPlaceModal';
+import PlaceActionSheet from '../components/PlaceActionSheet';
 import CountrySummary from '../components/CountrySummary';
 import SidePanel from '../components/SidePanel';
 import { geometryToPolygons } from '../utils/geojson';
@@ -31,10 +33,15 @@ const KNOWN_ZONE_FILL = hexToRgba(colors.accent, 0.12);
 const KNOWN_ZONE_DASH = [8, 6];
 
 export default function MapScreen({ navigation }) {
-  const { places, countryBoundaries, addPlace } = usePlaces();
+  const { places, countryBoundaries, addPlace, updatePlace, removePlace } = usePlaces();
   const { byName: statsByName } = useCountryStats();
   const [modalVisible, setModalVisible] = useState(false);
   const [panelVisible, setPanelVisible] = useState(false);
+  // Coordonnée d'un appui long sur la carte, en attente de confirmation
+  // dans AddPlaceModal (null si l'ajout vient du bouton "+")
+  const [pendingCoordinate, setPendingCoordinate] = useState(null);
+  const [actionSheetPlace, setActionSheetPlace] = useState(null);
+  const [editingPlace, setEditingPlace] = useState(null);
   const mapRef = useRef(null);
 
   // Liste des pays distincts déjà visités (déduite des lieux enregistrés)
@@ -57,9 +64,33 @@ export default function MapScreen({ navigation }) {
     );
   };
 
+  // Appui long sur la carte : ouvre directement le formulaire d'ajout avec
+  // ce point, comme sur Apple/Google Maps
+  const handleMapLongPress = (event) => {
+    setPendingCoordinate(event.nativeEvent.coordinate);
+    setModalVisible(true);
+  };
+
+  const closeAddModal = () => {
+    setModalVisible(false);
+    setPendingCoordinate(null);
+  };
+
+  const handleDeletePlace = (place) => {
+    Alert.alert('Supprimer ce lieu ?', place.city || place.name, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: () => removePlace(place.id) },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
-      <MapView ref={mapRef} style={styles.map} initialRegion={INITIAL_REGION}>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={INITIAL_REGION}
+        onLongPress={handleMapLongPress}
+      >
         {/* Contour pâle des pays déjà visités (dessiné avant les markers,
             pour qu'il reste bien "sous" les points) */}
         {visitedCountries.map((country) => {
@@ -87,9 +118,8 @@ export default function MapScreen({ navigation }) {
           <React.Fragment key={place.id}>
             <Marker
               coordinate={{ latitude: place.latitude, longitude: place.longitude }}
-              title={place.name}
-              description={place.country}
               pinColor={colors.primary}
+              onPress={() => setActionSheetPlace(place)}
             />
             <Circle
               center={{ latitude: place.latitude, longitude: place.longitude }}
@@ -100,6 +130,8 @@ export default function MapScreen({ navigation }) {
             />
           </React.Fragment>
         ))}
+
+        {pendingCoordinate && <Marker coordinate={pendingCoordinate} pinColor={colors.accent} />}
       </MapView>
 
       <View style={styles.summaryOverlay}>
@@ -124,8 +156,31 @@ export default function MapScreen({ navigation }) {
 
       <AddPlaceModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={closeAddModal}
         onAdd={handleAddPlace}
+        initialCoordinate={pendingCoordinate}
+      />
+
+      <PlaceActionSheet
+        visible={Boolean(actionSheetPlace)}
+        place={actionSheetPlace}
+        onClose={() => setActionSheetPlace(null)}
+        onEdit={() => {
+          setEditingPlace(actionSheetPlace);
+          setActionSheetPlace(null);
+        }}
+        onDelete={() => {
+          const place = actionSheetPlace;
+          setActionSheetPlace(null);
+          handleDeletePlace(place);
+        }}
+      />
+
+      <EditPlaceModal
+        visible={Boolean(editingPlace)}
+        place={editingPlace}
+        onClose={() => setEditingPlace(null)}
+        onSave={updatePlace}
       />
 
       <SidePanel visible={panelVisible} onClose={() => setPanelVisible(false)}>

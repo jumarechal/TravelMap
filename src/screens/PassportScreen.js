@@ -85,13 +85,12 @@ export default function PassportScreen({ navigation }) {
             </LinearGradient>
 
             <TravelerProfile statsByCode={statsByCode} />
+
+            <TouchableOpacity style={styles.legendButton} onPress={() => setLegendVisible(true)}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+              <Text style={styles.legendButtonText}>Comment fonctionnent les niveaux ?</Text>
+            </TouchableOpacity>
           </View>
-        }
-        ListFooterComponent={
-          <TouchableOpacity style={styles.legendButton} onPress={() => setLegendVisible(true)}>
-            <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-            <Text style={styles.legendButtonText}>Comment fonctionnent les niveaux ?</Text>
-          </TouchableOpacity>
         }
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
