@@ -3,12 +3,12 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radius, spacing, getLevelColor, getLevelTextColor } from '../theme/theme';
 
 const LEVEL_DESCRIPTIONS = [
-  { level: 1, text: 'On est déjà allé dans le pays' },
-  { level: 2, text: 'On a visité 2 villes différentes' },
-  { level: 3, text: 'On a visité 5 villes différentes, ou dépassé 25% de progression' },
-  { level: 4, text: 'On a visité 8 villes différentes, ou dépassé 50% de progression' },
-  { level: 5, text: 'On a visité 12 villes différentes, ou dépassé 75% de progression' },
-  { level: 6, text: 'On a atteint 90% de progression (ou plus) : voyageur légende du pays' },
+  { level: 1, text: 'Vous êtes déjà allé dans le pays.' },
+  { level: 2, text: 'Vous avez visité 2 villes différentes.' },
+  { level: 3, text: 'Vous avez visité 5 villes différentes, ou dépassé 25 % de progression.' },
+  { level: 4, text: 'Vous avez visité 8 villes différentes, ou dépassé 50 % de progression.' },
+  { level: 5, text: 'Vous avez visité 12 villes différentes, ou dépassé 75 % de progression.' },
+  { level: 6, text: 'Vous avez atteint 90 % de progression (ou plus) : vous êtes une légende de ce pays.' },
 ];
 
 // Pop-up qui détaille comment chaque niveau (1 à 6) d'un pays est calculé.

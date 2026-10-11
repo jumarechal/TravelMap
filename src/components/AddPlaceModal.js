@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { geocodeAddress } from '../services/geocoding';
+import { geocodeAddress, reverseGeocode } from '../services/geocoding';
 import { storePhoto } from '../services/photoStorage';
 import { colors, radius, spacing, shadow } from '../theme/theme';
 import AddressAutocomplete from './AddressAutocomplete';
@@ -19,9 +19,11 @@ import DateField from './DateField';
 import NoteField from './NoteField';
 import PhotoPicker from './PhotoPicker';
 
-// Fenêtre modale affichée quand on appuie sur le bouton "+".
+// Fenêtre modale affichée quand on appuie sur le bouton "+", ou quand on fait
+// un appui long sur la carte (initialCoordinate est alors fourni : l'adresse
+// est retrouvée automatiquement à partir de ce point).
 // Elle permet de saisir une adresse, de la géocoder, puis d'ajouter le lieu.
-export default function AddPlaceModal({ visible, onClose, onAdd }) {
+export default function AddPlaceModal({ visible, onClose, onAdd, initialCoordinate }) {
   const [query, setQuery] = useState('');
   // Lieu choisi dans les suggestions d'autocomplétion (évite de re-géocoder
   // le texte et lève l'ambiguïté entre deux lieux du même nom)
@@ -30,7 +32,27 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
   const [note, setNote] = useState('');
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [resolvingCoordinate, setResolvingCoordinate] = useState(false);
   const [error, setError] = useState(null);
+
+  // Appui long sur la carte : on retrouve l'adresse à partir du point choisi
+  // et on pré-remplit le champ, plutôt que de laisser l'utilisateur taper
+  useEffect(() => {
+    if (!visible || !initialCoordinate) return;
+
+    setResolvingCoordinate(true);
+    setError(null);
+
+    reverseGeocode(initialCoordinate.latitude, initialCoordinate.longitude)
+      .then((geo) => {
+        setQuery(geo.city ? `${geo.city}, ${geo.country}` : geo.displayName.split(',')[0].trim());
+        setSelectedGeo(geo);
+      })
+      .catch(() => {
+        setError("Adresse introuvable à cet endroit, tu peux la saisir manuellement.");
+      })
+      .finally(() => setResolvingCoordinate(false));
+  }, [visible, initialCoordinate]);
 
   const handleClose = () => {
     setQuery('');
@@ -109,11 +131,21 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
               setQuery(suggestion.label);
               setSelectedGeo(suggestion);
             }}
-            placeholder="Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris"
-            autoFocus
-            editable={!loading}
+            placeholder={
+              resolvingCoordinate
+                ? "Recherche de l'adresse..."
+                : 'Ex : Hanoï, Vietnam ou 10 rue de la Paix, Paris'
+            }
+            autoFocus={!initialCoordinate}
+            editable={!loading && !resolvingCoordinate}
             error={error}
           />
+          {resolvingCoordinate && (
+            <View style={styles.resolvingRow}>
+              <ActivityIndicator size="small" color={colors.textMuted} />
+              <Text style={styles.resolvingText}>Recherche de l'adresse à cet endroit...</Text>
+            </View>
+          )}
 
           <ScrollView style={styles.scrollArea} keyboardShouldPersistTaps="handled">
             <DateField value={date} onChange={setDate} />
@@ -133,9 +165,12 @@ export default function AddPlaceModal({ visible, onClose, onAdd }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              style={[
+                styles.submitButton,
+                (loading || resolvingCoordinate) && styles.submitButtonDisabled,
+              ]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading || resolvingCoordinate}
               activeOpacity={0.85}
             >
               {loading ? (
@@ -192,6 +227,16 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: colors.text,
+  },
+  resolvingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  resolvingText: {
+    fontSize: 12,
+    color: colors.textMuted,
   },
   scrollArea: {
     maxHeight: 280,
